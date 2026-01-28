@@ -13,6 +13,16 @@ const leadTypeColors = {
   unknown: 'bg-[rgba(232,230,227,0.05)] text-[rgba(232,230,227,0.5)] border border-[rgba(232,230,227,0.1)]',
 }
 
+const personalDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com', 'live.com', 'proton.me', 'protonmail.com', 'aol.com', 'me.com']
+
+function getCompanyDisplay(lead: WorkshopLead): string {
+  if (lead.linkedin_company) return lead.linkedin_company
+  if (lead.company_domain && !personalDomains.includes(lead.company_domain)) {
+    return lead.company_domain
+  }
+  return '-'
+}
+
 export function LeadTable({ leads, onLeadClick }: LeadTableProps) {
   return (
     <div className="overflow-x-auto">
@@ -29,7 +39,10 @@ export function LeadTable({ leads, onLeadClick }: LeadTableProps) {
               Type
             </th>
             <th className="px-6 py-3 text-left kith-label">
-              LinkedIn Title
+              Company
+            </th>
+            <th className="px-6 py-3 text-left kith-label">
+              Title
             </th>
             <th className="px-6 py-3 text-left kith-label">
               Location
@@ -62,6 +75,11 @@ export function LeadTable({ leads, onLeadClick }: LeadTableProps) {
                 <span className={`px-2 py-1 inline-flex text-xs leading-5 font-medium rounded ${leadTypeColors[lead.lead_type]}`}>
                   {lead.lead_type}
                 </span>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                <div className="text-sm text-[var(--color-text-secondary)]">
+                  {getCompanyDisplay(lead)}
+                </div>
               </td>
               <td className="px-6 py-4">
                 <div className="text-sm text-[var(--color-text-secondary)] max-w-xs truncate">
