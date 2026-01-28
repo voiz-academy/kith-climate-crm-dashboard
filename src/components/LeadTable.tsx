@@ -2,8 +2,20 @@
 
 import { WorkshopLead } from '@/lib/supabase'
 
+type LeadWithAttendance = WorkshopLead & {
+  attended_dates: string[]
+}
+
 interface LeadTableProps {
-  leads: WorkshopLead[]
+  leads: LeadWithAttendance[]
+}
+
+function formatAttendedDates(dates: string[]): string {
+  if (!dates || dates.length === 0) return '-'
+  return dates
+    .sort()
+    .map(d => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))
+    .join(', ')
 }
 
 const leadTypeColors = {
@@ -41,6 +53,9 @@ export function LeadTable({ leads }: LeadTableProps) {
               Company
             </th>
             <th className="px-6 py-3 text-left kith-label">
+              Attended
+            </th>
+            <th className="px-6 py-3 text-left kith-label">
               Location
             </th>
           </tr>
@@ -57,12 +72,12 @@ export function LeadTable({ leads }: LeadTableProps) {
                     href={lead.linkedin_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-sm font-medium text-[#5B9A8B] hover:text-[#6FB3A2] transition-colors"
+                    className="text-sm font-semibold text-[#5B9A8B] hover:text-[#6FB3A2] transition-colors"
                   >
                     {lead.first_name} {lead.last_name}
                   </a>
                 ) : (
-                  <span className="text-sm font-medium text-[var(--color-text-primary)]">
+                  <span className="text-sm text-[var(--color-text-tertiary)]">
                     {lead.first_name} {lead.last_name}
                   </span>
                 )}
@@ -80,6 +95,11 @@ export function LeadTable({ leads }: LeadTableProps) {
               <td className="px-6 py-4 whitespace-nowrap">
                 <div className="text-sm text-[var(--color-text-secondary)]">
                   {getCompanyDisplay(lead)}
+                </div>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                <div className="text-sm text-[var(--color-text-secondary)]">
+                  {formatAttendedDates(lead.attended_dates)}
                 </div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--color-text-tertiary)]">

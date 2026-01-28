@@ -75,10 +75,23 @@ export default async function Dashboard() {
       attended: stats.attended,
     }))
 
-  // Get recent leads with LinkedIn data for the table
+  // Build map of lead_id to attended dates
+  const attendedDatesMap = new Map<string, string[]>()
+  registrations.forEach((reg: WorkshopRegistration) => {
+    if (reg.attended) {
+      const dates = attendedDatesMap.get(reg.lead_id) || []
+      dates.push(reg.event_date)
+      attendedDatesMap.set(reg.lead_id, dates)
+    }
+  })
+
+  // Get leads with LinkedIn data for the table, enriched with attended dates
   const enrichedLeads = leads
     .filter((l: WorkshopLead) => l.linkedin_url)
-    .slice(0, 20)
+    .map((l: WorkshopLead) => ({
+      ...l,
+      attended_dates: attendedDatesMap.get(l.id) || []
+    }))
 
   return (
     <div className="min-h-screen">
