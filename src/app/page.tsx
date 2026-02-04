@@ -1,9 +1,10 @@
 import Image from 'next/image'
-import { supabase, WorkshopLead, WorkshopRegistration } from '@/lib/supabase'
+import { supabase, WorkshopLead, WorkshopRegistration, getEventShortLabel } from '@/lib/supabase'
 import { StatCard } from '@/components/StatCard'
 import { SegmentChart } from '@/components/SegmentChart'
 import { EventChart } from '@/components/EventChart'
 import { LeadTable } from '@/components/LeadTable'
+import { Navigation } from '@/components/Navigation'
 
 async function getDashboardData() {
   // Fetch all leads
@@ -70,7 +71,7 @@ export default async function Dashboard() {
   const eventData = Array.from(eventMap.entries())
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([date, stats]) => ({
-      event: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      event: getEventShortLabel(date),
       registered: stats.registered,
       attended: stats.attended,
     }))
@@ -93,6 +94,9 @@ export default async function Dashboard() {
       attended_dates: attendedDatesMap.get(l.id) || []
     }))
 
+  // Get unique event dates for filter dropdown
+  const eventDates = Array.from(eventMap.keys()).sort()
+
   return (
     <div className="min-h-screen">
       {/* Header */}
@@ -108,7 +112,7 @@ export default async function Dashboard() {
                 priority
               />
               <div className="h-6 w-px bg-[var(--color-border)]" />
-              <span className="kith-label">CRM Dashboard</span>
+              <Navigation />
             </div>
             <div className="text-xs text-[var(--color-text-muted)] font-mono">
               {new Date().toLocaleString('en-US', {
@@ -165,7 +169,7 @@ export default async function Dashboard() {
               {enrichedLeads.length} leads with LinkedIn data
             </p>
           </div>
-          <LeadTable leads={enrichedLeads} />
+          <LeadTable leads={enrichedLeads} eventDates={eventDates} />
         </div>
 
         {/* Footer */}

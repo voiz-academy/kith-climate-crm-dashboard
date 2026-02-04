@@ -38,3 +38,36 @@ export type WorkshopRegistration = {
   source_api_id: string | null
   created_at: string
 }
+
+export type LeadWithAttendance = WorkshopLead & {
+  attended_dates: string[]
+}
+
+// Event name/label mapping
+export const EVENT_LABELS: Record<string, string> = {
+  '2025-12-04': 'Build a Climate Solution — Dec 4',
+  '2025-12-17': 'Build a Climate Solution — Dec 17',
+  '2026-01-13': 'Build a Climate Solution — Jan 13',
+  '2026-02-05': 'Claude Code for Climate Work — Feb 5',
+}
+
+export function getEventLabel(date: string): string {
+  return EVENT_LABELS[date] || new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
+export function getEventShortLabel(date: string): string {
+  const labels: Record<string, string> = {
+    '2025-12-04': 'Dec 4',
+    '2025-12-17': 'Dec 17',
+    '2026-01-13': 'Jan 13',
+    '2026-02-05': 'Feb 5',
+  }
+  return labels[date] || new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
+export const personalDomains = new Set([
+  'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com',
+  'live.com', 'proton.me', 'protonmail.com', 'aol.com', 'me.com',
+  'ymail.com', 'yahoo.co.uk', 'msn.com', 'mail.com', 'gmx.de',
+  'googlemail.com', 'mac.com', 'pm.me', 'btinternet.com',
+])
