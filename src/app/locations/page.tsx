@@ -1,6 +1,6 @@
 import Image from 'next/image'
 import Link from 'next/link'
-import { supabase, WorkshopLead } from '@/lib/supabase'
+import { fetchAll, WorkshopLead } from '@/lib/supabase'
 import { Navigation } from '@/components/Navigation'
 
 type LocationData = {
@@ -11,15 +11,7 @@ type LocationData = {
 }
 
 async function getLocationsData(): Promise<LocationData[]> {
-  // Fetch all leads with location data
-  const { data: leads, error: leadsError } = await supabase
-    .from('workshop_leads')
-    .select('*')
-
-  if (leadsError) {
-    console.error('Error fetching leads:', leadsError)
-    return []
-  }
+  const leads = await fetchAll<WorkshopLead>('workshop_leads')
 
   // Aggregate by location
   const locationMap = new Map<string, LocationData>()

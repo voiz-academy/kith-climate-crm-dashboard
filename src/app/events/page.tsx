@@ -1,6 +1,6 @@
 import Image from 'next/image'
 import Link from 'next/link'
-import { supabase, WorkshopLead, WorkshopRegistration, getEventLabel, getEventShortLabel, personalDomains } from '@/lib/supabase'
+import { fetchAll, WorkshopLead, WorkshopRegistration, getEventLabel, getEventShortLabel, personalDomains } from '@/lib/supabase'
 import { Navigation } from '@/components/Navigation'
 import { EventComparisonChart } from '@/components/EventComparisonChart'
 
@@ -24,23 +24,8 @@ type EventStats = {
 }
 
 async function getEventComparisonData(): Promise<EventStats[]> {
-  const { data: leads, error: leadsError } = await supabase
-    .from('workshop_leads')
-    .select('*')
-
-  if (leadsError) {
-    console.error('Error fetching leads:', leadsError)
-    return []
-  }
-
-  const { data: registrations, error: regsError } = await supabase
-    .from('workshop_registrations')
-    .select('*')
-
-  if (regsError) {
-    console.error('Error fetching registrations:', regsError)
-    return []
-  }
+  const leads = await fetchAll<WorkshopLead>('workshop_leads')
+  const registrations = await fetchAll<WorkshopRegistration>('workshop_registrations')
 
   // Build lead lookup
   const leadMap = new Map<string, WorkshopLead>()

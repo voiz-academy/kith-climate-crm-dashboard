@@ -33,8 +33,11 @@ cd crm-dashboard && npm install
 
 **Environment variable:**
 ```bash
-export APIFY_TOKEN=apify_api_xxxxx
+# Add to crm-dashboard/.env.local (persists across sessions):
+APIFY_TOKEN=apify_api_xxxxx
 ```
+
+**⚠️ Token must be in `.env.local`** — `export APIFY_TOKEN=...` in a shell only works for that session. Background processes, Claude Code agents, and `nohup` scripts won't inherit it. All scripts in this pipeline read from `.env.local` using inline env parsing (no `dotenv` dependency needed).
 
 ---
 
@@ -161,19 +164,43 @@ const run = await client.actor('harvestapi/linkedin-profile-search-by-name').cal
 
 **The script is idempotent** — re-running skips already-enriched leads (`linkedin_url IS NULL`).
 
-### Running at scale with Claude Code (parallel agents)
+### Running at scale with Claude Code
 
-For large batches (500+ leads), the sequential script is slow (~2+ hours). Use Claude Code's parallel agent pattern:
+For large batches (500+ leads), the sequential script is slow (~2+ hours). Use standalone scripts launched via `nohup`:
 
-1. Query unenriched leads from Supabase
-2. Split into batches of 60-80 leads
-3. Launch 4-8 background agents in parallel, each calling the Apify actor
-4. Monitor progress with `SELECT count(*) WHERE linkedin_url IS NOT NULL`
-5. Re-launch new agents on remaining leads as batches complete
+```bash
+nohup node scripts/enrich-remaining.js > /tmp/enrich-remaining.log 2>&1 &
+echo "PID: $!"
+```
 
-This processes ~500 leads in ~15-20 minutes.
+**Key learnings from production runs:**
 
-**⚠️ Keep laptop awake** — background agents stop if the machine sleeps.
+1. **Use `nohup` + standalone script files** — don't use inline `node -e` or piped commands for long-running enrichment. Pipes break when Apify actor logs flood stderr, and background shell processes get cleaned up unpredictably.
+
+2. **Scripts must load their own env** — background processes don't inherit shell `export` variables. Use inline env loading in every script:
+   ```javascript
+   const fs = require('fs');
+   const envPath = require('path').join(__dirname, '..', '.env.local');
+   fs.readFileSync(envPath, 'utf-8').split('\n').forEach(line => {
+     const [key, ...val] = line.split('=');
+     if (key && val.length) process.env[key.trim()] = val.join('=').trim();
+   });
+   ```
+
+3. **Don't use `dotenv`** — it's not in the project dependencies. Use the inline parser above.
+
+4. **Parallel agents via Claude Code Task tool are unreliable** — they often fail silently (output files disappear, processes get reaped). Prefer a single `nohup` process that runs sequentially. At ~8 sec/lead, 60 leads takes ~8 min.
+
+5. **Expect ~10 min runtime per batch** — processes may get killed by system timeouts. Design for resumability: the script queries `linkedin_url IS NULL` each time, so re-running picks up where it left off.
+
+6. **Monitor with Supabase count, not log files** — log output is unreliable with background processes. Instead:
+   ```bash
+   node -e "/* count enriched leads from supabase */"
+   ```
+
+7. **Keep laptop awake** — background processes stop if the machine sleeps.
+
+8. **Name search has a ceiling** — after processing all leads with full names, expect ~10-15% to return 0 LinkedIn results (unusual names, non-Western names, not on platform). These won't improve with re-runs.
 
 ### Fallback: Email-to-LinkedIn lookup
 
@@ -181,16 +208,29 @@ For leads that still can't be searched by name (no last name after all parsing),
 
 **Apify Actor:** `enrichmentlabs/linkedin-data-enrichment-api`
 
+**⚠️ Correct input format** — this actor does NOT use `urls`. It uses `mode` + `bulkEmails`:
+
 ```javascript
 const run = await client.actor('enrichmentlabs/linkedin-data-enrichment-api').call({
-  urls: emails.map(e => ({ url: e })),  // max 5 per bulk request
-});
+  mode: 'bulk-email-lookup',
+  bulkEmails: emails,  // array of email strings, max 5 per request
+}, { timeout: 120 });
 ```
+
+**Wrong (will silently fail with Turkish error message):**
+```javascript
+// DON'T DO THIS:
+{ urls: emails.map(e => ({ url: e })) }
+```
+
+**Available modes:** `email-lookup`, `bulk-email-lookup`, `social-url-lookup`, `bulk-social-url-lookup`, `company-lookup`, `email-finder`, `person-match`, `email-verification`
 
 - Cost: ~$0.01 per result
 - **Max 5 emails per request** — batch accordingly
-- Match rate: ~40-50%
+- Match rate: very low for personal emails (Gmail, Hotmail etc.) — in our run, 0/119 matched. Works better with corporate email domains.
 - Returns LinkedIn profile URL, name, and company if found
+
+**Standalone script:** `scripts/enrich-email-lookup.js`
 
 ---
 
@@ -334,21 +374,22 @@ node scripts/audit-data.js
 
 ## Expected Results
 
-| Metric | Target | Notes |
-|--------|--------|-------|
-| LinkedIn enriched | 75-85% | Higher with email name recovery |
-| Company data | 70-75% | Re-scrape fills gaps |
-| Classified (non-unknown) | 75-85% | Depends on enrichment rate |
-| Fully enriched & classified | 65-75% | Has LinkedIn + company + title + lead type |
+| Metric | Target | Actual (Feb 2026) | Notes |
+|--------|--------|-------------------|-------|
+| LinkedIn enriched | 75-85% | **90%** (1,113/1,232) | Email name recovery pushed it above target |
+| Company data | 70-75% | TBD | Re-scrape fills gaps |
+| Classified (non-unknown) | 75-85% | **83%** (1,023/1,232) | 423 professional + 600 pivoter |
+| Fully enriched & classified | 65-75% | TBD | Has LinkedIn + company + title + lead type |
 
 ### Why some leads aren't enriched
 
-| Reason | % of total | Mitigation |
-|--------|-----------|------------|
-| Missing last name | ~10-15% | Email parsing recovers ~60% of these |
-| No LinkedIn match | ~5-10% | Common/international names, not on platform |
-| Sparse profiles | ~3-5% | Re-scrape fills some; students/inactive accounts |
-| Email-only signup (no name at all) | ~1-3% | Email lookup finds ~40-50% |
+| Reason | % of total | Actual | Mitigation |
+|--------|-----------|--------|------------|
+| Missing last name | ~10-15% | 52 (4%) | Email parsing recovered most; remainder have ambiguous emails |
+| No LinkedIn match (name search) | ~5-10% | 67 (5%) | Non-Western/unusual names, not on platform. Re-runs won't help. |
+| No LinkedIn match (email lookup) | varies | 119 (10%) attempted, 0 matched | Personal email domains (Gmail etc.) have near-zero match rate |
+| Sparse profiles | ~3-5% | TBD | Re-scrape fills some; students/inactive accounts |
+| Email-only signup (no name at all) | ~1-3% | ~1% | Very few after email name recovery |
 
 ---
 
@@ -425,21 +466,35 @@ export const EVENT_LABELS: Record<string, string> = {
 ### Script crashes with ECONNRESET
 Normal for long-running scripts. Re-run — all scripts are idempotent.
 
+### Background process dies silently
+Check these in order:
+1. **APIFY_TOKEN not loaded** — most common. Verify with `node -e "console.log(process.env.APIFY_TOKEN)"` inside the script. Must be in `.env.local`, not just shell `export`.
+2. **Pipe broken** — if you launched with `| grep` or `| head`, Apify actor logs to stderr can break the pipe and kill the process. Always redirect: `> /tmp/log.log 2>&1`.
+3. **System timeout** — macOS may reap long-running background processes. Use `nohup` and design scripts to be re-runnable.
+4. **Apify usage limits** — check your Apify dashboard. The actor will throw auth errors if you hit plan limits.
+
 ### Many "Not found" results
 - Check names are properly parsed (need both first + last)
-- International names may need manual lookup
-- Try email-to-LinkedIn lookup as fallback
+- International/non-Western names often return 0 results — this is a known limitation of the name search actor
+- Try email-to-LinkedIn lookup as fallback (works better with corporate emails than personal)
 
 ### Supabase returns only 1000 rows
-Default page size limit. Use `.range()` to paginate:
+Default page size limit. **This silently truncates results** — aggregations on fetched data will be wrong. Use count queries instead:
 ```javascript
-const { data } = await supabase.schema('diego')
-  .from('workshop_leads').select('*').range(0, 999);
-// Then .range(1000, 1999) for next page
+// WRONG — only counts first 1000
+const { data } = await supabase.schema('diego').from('workshop_leads').select('lead_type');
+data.length; // ← capped at 1000
+
+// RIGHT — true count
+const { count } = await supabase.schema('diego').from('workshop_leads')
+  .select('*', { count: 'exact', head: true }).eq('lead_type', 'professional');
 ```
 
 ### Actor not found errors
 Verify exact actor name on Apify — case-sensitive, includes `username/` prefix.
+
+### Email lookup actor wrong input format
+The `enrichmentlabs/linkedin-data-enrichment-api` actor requires `mode: 'bulk-email-lookup'` and `bulkEmails: [...]`. Using `urls: [{ url: email }]` will fail with a Turkish error message ("Bu işlem için Email adresi zorunludur!").
 
 ### New schema not accessible via API
 If tables were created in a new Supabase schema:
@@ -483,7 +538,9 @@ crm-dashboard/
 ├── scripts/
 │   ├── import-registrants.js          Step 2: CSV → Supabase
 │   ├── fix-names.js                   Step 3a: Parse names from CSV
-│   ├── linkedin-enrichment.js         Step 4: Name → LinkedIn profile
+│   ├── linkedin-enrichment.js         Step 4: Name → LinkedIn profile (sequential)
+│   ├── enrich-remaining.js            Step 4b: Name search for remaining leads (nohup-friendly)
+│   ├── enrich-email-lookup.js         Step 4c: Email → LinkedIn lookup (nohup-friendly)
 │   ├── rescrape-profiles.js           Step 5: URL → company data
 │   ├── reclassify-leads.js            Step 6: Keyword classification
 │   ├── fix-issues.js                  Step 6b: Misclassification fixes
@@ -495,7 +552,7 @@ crm-dashboard/
 │   ├── lib/supabase.ts                Types, event labels, shared constants
 │   ├── app/                           Next.js pages (dashboard, events, companies, locations, repeat-attendees)
 │   └── components/                    UI components (LeadTable, TableControls, charts, modals, etc.)
-└── .env.local                         Supabase URL + anon key
+└── .env.local                         Supabase URL + anon key + APIFY_TOKEN
 ```
 
 ---
@@ -507,5 +564,11 @@ crm-dashboard/
 | 2025-12 | Build a Climate Solution — Dec 4 | 174 | 174 | ~82% |
 | 2025-12 | Build a Climate Solution — Dec 17 | 265 | ~200 | ~82% |
 | 2026-01 | Build a Climate Solution — Jan 13 | 261 | ~250 | ~82% |
-| 2026-02 | Claude Code for Climate Work — Feb 5 | 742 | 605 | ~82% |
-| **Total** | | **1,442** | **~1,230** | |
+| 2026-02 | Claude Code for Climate Work — Feb 5 | 742 | 605 | 90% |
+| **Total** | | **1,442** | **1,232** | **90%** |
+
+### Feb 2026 Run Notes
+- Name search enriched 1,113 leads (90%). Remaining 119 exhausted both name search and email lookup.
+- Email lookup (`bulk-email-lookup` mode) returned 0 matches on 119 personal email addresses — this actor is ineffective for Gmail/Hotmail/personal domains.
+- Classification: 423 professional (34%), 600 pivoter (49%), 209 unknown (17%). Unknowns are mostly leads without LinkedIn data.
+- Total Apify spend for this run: ~$8-10 across all actors.

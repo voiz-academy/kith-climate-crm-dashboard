@@ -1,3 +1,10 @@
+const fs = require('fs');
+const envPath = require('path').join(__dirname, '..', '.env.local');
+fs.readFileSync(envPath, 'utf-8').split('\n').forEach(line => {
+  const [key, ...val] = line.split('=');
+  if (key && val.length) process.env[key.trim()] = val.join('=').trim();
+});
+
 const { createClient } = require('@supabase/supabase-js');
 const { ApifyClient } = require('apify-client');
 

@@ -1,6 +1,6 @@
 import Image from 'next/image'
 import Link from 'next/link'
-import { supabase, WorkshopLead, WorkshopRegistration } from '@/lib/supabase'
+import { fetchAll, WorkshopLead, WorkshopRegistration } from '@/lib/supabase'
 import { Navigation } from '@/components/Navigation'
 
 type CompanyData = {
@@ -18,25 +18,8 @@ type CompanyData = {
 }
 
 async function getCompaniesData(): Promise<CompanyData[]> {
-  // Fetch all leads with LinkedIn data
-  const { data: leads, error: leadsError } = await supabase
-    .from('workshop_leads')
-    .select('*')
-
-  if (leadsError) {
-    console.error('Error fetching leads:', leadsError)
-    return []
-  }
-
-  // Fetch all registrations
-  const { data: registrations, error: regsError } = await supabase
-    .from('workshop_registrations')
-    .select('*')
-
-  if (regsError) {
-    console.error('Error fetching registrations:', regsError)
-    return []
-  }
+  const leads = await fetchAll<WorkshopLead>('workshop_leads')
+  const registrations = await fetchAll<WorkshopRegistration>('workshop_registrations')
 
   // Build map of lead_id to attended count
   const attendedCountMap = new Map<string, number>()

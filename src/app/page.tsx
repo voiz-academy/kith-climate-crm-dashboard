@@ -1,34 +1,18 @@
 import Image from 'next/image'
-import { supabase, WorkshopLead, WorkshopRegistration, getEventShortLabel } from '@/lib/supabase'
+import { fetchAll, WorkshopLead, WorkshopRegistration, getEventShortLabel } from '@/lib/supabase'
 import { StatCard } from '@/components/StatCard'
 import { SegmentChart } from '@/components/SegmentChart'
 import { EventChart } from '@/components/EventChart'
-import { LeadTable } from '@/components/LeadTable'
+import { LeadTableContainer } from '@/components/LeadTableContainer'
 import { Navigation } from '@/components/Navigation'
 
 async function getDashboardData() {
-  // Fetch all leads
-  const { data: leads, error: leadsError } = await supabase
-    .from('workshop_leads')
-    .select('*')
-    .order('created_at', { ascending: false })
+  const leads = await fetchAll<WorkshopLead>('workshop_leads', {
+    orderBy: 'created_at', ascending: false
+  })
+  const registrations = await fetchAll<WorkshopRegistration>('workshop_registrations')
 
-  if (leadsError) {
-    console.error('Error fetching leads:', leadsError)
-    return { leads: [], registrations: [] }
-  }
-
-  // Fetch all registrations
-  const { data: registrations, error: regsError } = await supabase
-    .from('workshop_registrations')
-    .select('*')
-
-  if (regsError) {
-    console.error('Error fetching registrations:', regsError)
-    return { leads: leads || [], registrations: [] }
-  }
-
-  return { leads: leads || [], registrations: registrations || [] }
+  return { leads, registrations }
 }
 
 export const revalidate = 60 // Revalidate every 60 seconds
@@ -74,24 +58,6 @@ export default async function Dashboard() {
       event: getEventShortLabel(date),
       registered: stats.registered,
       attended: stats.attended,
-    }))
-
-  // Build map of lead_id to attended dates
-  const attendedDatesMap = new Map<string, string[]>()
-  registrations.forEach((reg: WorkshopRegistration) => {
-    if (reg.attended) {
-      const dates = attendedDatesMap.get(reg.lead_id) || []
-      dates.push(reg.event_date)
-      attendedDatesMap.set(reg.lead_id, dates)
-    }
-  })
-
-  // Get leads with LinkedIn data for the table, enriched with attended dates
-  const enrichedLeads = leads
-    .filter((l: WorkshopLead) => l.linkedin_url)
-    .map((l: WorkshopLead) => ({
-      ...l,
-      attended_dates: attendedDatesMap.get(l.id) || []
     }))
 
   // Get unique event dates for filter dropdown
@@ -166,10 +132,10 @@ export default async function Dashboard() {
               Enriched Leads
             </h3>
             <p className="text-sm text-[var(--color-text-tertiary)]">
-              {enrichedLeads.length} leads with LinkedIn data
+              {withLinkedIn} leads with LinkedIn data
             </p>
           </div>
-          <LeadTable leads={enrichedLeads} eventDates={eventDates} />
+          <LeadTableContainer eventDates={eventDates} leadCount={withLinkedIn} />
         </div>
 
         {/* Footer */}

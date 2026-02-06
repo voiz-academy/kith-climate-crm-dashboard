@@ -65,6 +65,42 @@ export function getEventShortLabel(date: string): string {
   return labels[date] || new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
+// Paginated fetch to bypass Supabase max_rows (1000) limit
+// PAGE_SIZE must be < 1000 to avoid collision with PostgREST max_rows default
+const PAGE_SIZE = 500
+
+export async function fetchAll<T>(
+  table: string,
+  options?: { orderBy?: string; ascending?: boolean }
+): Promise<T[]> {
+  const allRows: T[] = []
+  let from = 0
+
+  while (true) {
+    let query = supabase.from(table).select('*').range(from, from + PAGE_SIZE - 1)
+
+    if (options?.orderBy) {
+      query = query.order(options.orderBy, { ascending: options.ascending ?? true })
+    }
+
+    const { data, error } = await query
+
+    if (error) {
+      console.error(`Error fetching ${table}:`, error)
+      return allRows
+    }
+
+    if (!data || data.length === 0) break
+
+    allRows.push(...(data as T[]))
+
+    if (data.length < PAGE_SIZE) break
+    from += PAGE_SIZE
+  }
+
+  return allRows
+}
+
 export const personalDomains = new Set([
   'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com',
   'live.com', 'proton.me', 'protonmail.com', 'aol.com', 'me.com',
