@@ -1,5 +1,5 @@
 import Image from 'next/image'
-import { fetchAll, WorkshopLead, WorkshopRegistration, getEventShortLabel } from '@/lib/supabase'
+import { fetchAll, Customer, WorkshopRegistration, getEventShortLabel } from '@/lib/supabase'
 import { StatCard } from '@/components/StatCard'
 import { SegmentChart } from '@/components/SegmentChart'
 import { EventChart } from '@/components/EventChart'
@@ -7,7 +7,7 @@ import { LeadTableContainer } from '@/components/LeadTableContainer'
 import { Navigation } from '@/components/Navigation'
 
 async function getDashboardData() {
-  const leads = await fetchAll<WorkshopLead>('workshop_leads', {
+  const leads = await fetchAll<Customer>('customers', {
     orderBy: 'created_at', ascending: false
   })
   const registrations = await fetchAll<WorkshopRegistration>('workshop_registrations')
@@ -22,14 +22,14 @@ export default async function Dashboard() {
 
   // Calculate stats
   const totalLeads = leads.length
-  const withLinkedIn = leads.filter((l: WorkshopLead) => l.linkedin_url).length
-  const professionals = leads.filter((l: WorkshopLead) => l.lead_type === 'professional').length
-  const pivoters = leads.filter((l: WorkshopLead) => l.lead_type === 'pivoter').length
-  const unknown = leads.filter((l: WorkshopLead) => l.lead_type === 'unknown').length
+  const withLinkedIn = leads.filter((l: Customer) => l.linkedin_url).length
+  const professionals = leads.filter((l: Customer) => l.lead_type === 'professional').length
+  const pivoters = leads.filter((l: Customer) => l.lead_type === 'pivoter').length
+  const unknown = leads.filter((l: Customer) => l.lead_type === 'unknown').length
 
   // Corporate vs personal emails
   const personalDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com', 'live.com', 'proton.me', 'protonmail.com', 'aol.com', 'me.com']
-  const corporateEmails = leads.filter((l: WorkshopLead) => l.company_domain && !personalDomains.includes(l.company_domain)).length
+  const corporateEmails = leads.filter((l: Customer) => l.company_domain && !personalDomains.includes(l.company_domain)).length
 
   // Segment data for pie chart - using Kith Climate brand colors
   const segmentData = [

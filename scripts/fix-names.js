@@ -2,8 +2,8 @@ const fs = require('fs');
 const { createClient } = require('@supabase/supabase-js');
 
 const supabase = createClient(
-  'https://zvllsngvdkmnsjydoymq.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp2bGxzbmd2ZGttbnNqeWRveW1xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzgyNDM0MjIsImV4cCI6MjA1MzgxOTQyMn0.u4hdlDewfcII7UbkfAu7CukHxNho7yIw-JoSB3S4o34'
+  'https://tfcuozmbnnswencikncv.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRmY3Vvem1ibm5zd2VuY2lrbmN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc5MzU1NDUsImV4cCI6MjA2MzUxMTU0NX0.37WDHXS2HV81Oj_V8i_HkDbXWLVkzuUA-GSZgS3YckA'
 );
 
 const csvFiles = [
@@ -59,8 +59,8 @@ async function main() {
   let updated = 0;
   for (const fix of toFix) {
     const { error } = await supabase
-      .schema('diego')
-      .from('workshop_leads')
+      .schema('kith_climate')
+      .from('customers')
       .update({ first_name: fix.first_name, last_name: fix.last_name })
       .eq('email', fix.email)
       .or('last_name.is.null,last_name.eq.');
@@ -72,8 +72,8 @@ async function main() {
 
   // Check remaining
   const { count } = await supabase
-    .schema('diego')
-    .from('workshop_leads')
+    .schema('kith_climate')
+    .from('customers')
     .select('*', { count: 'exact', head: true })
     .is('linkedin_url', null)
     .or('last_name.is.null,last_name.eq.');

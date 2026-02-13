@@ -9,8 +9,8 @@ const { createClient } = require('@supabase/supabase-js');
 const { ApifyClient } = require('apify-client');
 
 const supabase = createClient(
-  'https://zvllsngvdkmnsjydoymq.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp2bGxzbmd2ZGttbnNqeWRveW1xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzgyNDM0MjIsImV4cCI6MjA1MzgxOTQyMn0.u4hdlDewfcII7UbkfAu7CukHxNho7yIw-JoSB3S4o34'
+  'https://tfcuozmbnnswencikncv.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRmY3Vvem1ibm5zd2VuY2lrbmN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc5MzU1NDUsImV4cCI6MjA2MzUxMTU0NX0.37WDHXS2HV81Oj_V8i_HkDbXWLVkzuUA-GSZgS3YckA'
 );
 
 const client = new ApifyClient({
@@ -47,8 +47,8 @@ function extractTitle(profile) {
 async function main() {
   // Get leads with LinkedIn URL but missing company
   const { data: leads, error } = await supabase
-    .schema('diego')
-    .from('workshop_leads')
+    .schema('kith_climate')
+    .from('customers')
     .select('id, first_name, last_name, linkedin_url, linkedin_company, linkedin_title')
     .not('linkedin_url', 'is', null)
     .or('linkedin_company.is.null,linkedin_company.eq.');
@@ -82,8 +82,8 @@ async function main() {
 
         if (Object.keys(updateData).length > 0) {
           const { error: updateError } = await supabase
-            .schema('diego')
-            .from('workshop_leads')
+            .schema('kith_climate')
+            .from('customers')
             .update(updateData)
             .eq('id', lead.id);
 

@@ -16,8 +16,7 @@ pattern = "crm.kithclimate.com"
 zone_id = "22989907f43562abd12a5dbf002df775"
 custom_domain = true
 
-# Environment variables for local development
-# Production values are set in Cloudflare dashboard
+# Environment variables
 [vars]
-# NEXT_PUBLIC_SUPABASE_URL = "your-supabase-url"
-# NEXT_PUBLIC_SUPABASE_ANON_KEY = "your-anon-key"
+NEXT_PUBLIC_SUPABASE_URL = "https://tfcuozmbnnswencikncv.supabase.co"
+NEXT_PUBLIC_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRmY3Vvem1ibm5zd2VuY2lrbmN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc5MzU1NDUsImV4cCI6MjA2MzUxMTU0NX0.37WDHXS2HV81Oj_V8i_HkDbXWLVkzuUA-GSZgS3YckA"

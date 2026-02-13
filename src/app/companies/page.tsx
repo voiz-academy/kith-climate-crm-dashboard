@@ -1,6 +1,6 @@
 import Image from 'next/image'
 import Link from 'next/link'
-import { fetchAll, WorkshopLead, WorkshopRegistration } from '@/lib/supabase'
+import { fetchAll, Customer, WorkshopRegistration } from '@/lib/supabase'
 import { Navigation } from '@/components/Navigation'
 
 type CompanyData = {
@@ -18,14 +18,14 @@ type CompanyData = {
 }
 
 async function getCompaniesData(): Promise<CompanyData[]> {
-  const leads = await fetchAll<WorkshopLead>('workshop_leads')
+  const leads = await fetchAll<Customer>('customers')
   const registrations = await fetchAll<WorkshopRegistration>('workshop_registrations')
 
   // Build map of lead_id to attended count
   const attendedCountMap = new Map<string, number>()
   registrations.forEach((reg: WorkshopRegistration) => {
     if (reg.attended) {
-      attendedCountMap.set(reg.lead_id, (attendedCountMap.get(reg.lead_id) || 0) + 1)
+      attendedCountMap.set(reg.customer_id, (attendedCountMap.get(reg.customer_id) || 0) + 1)
     }
   })
 
@@ -33,7 +33,7 @@ async function getCompaniesData(): Promise<CompanyData[]> {
   const companyMap = new Map<string, CompanyData>()
   const personalDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com', 'live.com', 'proton.me', 'protonmail.com', 'aol.com', 'me.com']
 
-  leads.forEach((lead: WorkshopLead) => {
+  leads.forEach((lead: Customer) => {
     // Get company name
     let company = lead.linkedin_company
     if (!company && lead.company_domain && !personalDomains.includes(lead.company_domain)) {

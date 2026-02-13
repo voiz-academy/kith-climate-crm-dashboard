@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server'
-import { fetchAll, WorkshopLead, WorkshopRegistration } from '@/lib/supabase'
+import { fetchAll, Customer, WorkshopRegistration } from '@/lib/supabase'
 
 export async function GET() {
   try {
     // Fetch leads with LinkedIn data (paginated to bypass 1000-row limit)
-    const allLeads = await fetchAll<WorkshopLead>('workshop_leads', {
+    const allLeads = await fetchAll<Customer>('customers', {
       orderBy: 'created_at', ascending: false
     })
     const leads = allLeads.filter(l => l.linkedin_url)
@@ -16,9 +16,9 @@ export async function GET() {
     const attendedDatesMap = new Map<string, string[]>()
     registrations.forEach((reg) => {
       if (reg.attended) {
-        const dates = attendedDatesMap.get(reg.lead_id) || []
+        const dates = attendedDatesMap.get(reg.customer_id) || []
         dates.push(reg.event_date)
-        attendedDatesMap.set(reg.lead_id, dates)
+        attendedDatesMap.set(reg.customer_id, dates)
       }
     })
 

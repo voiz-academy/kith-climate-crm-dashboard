@@ -7,9 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "cf:build": "opennextjs-cloudflare",
+    "cf:build": "opennextjs-cloudflare build",
     "cf:dev": "wrangler dev",
-    "cf:deploy": "opennextjs-cloudflare && wrangler deploy"
+    "cf:deploy": "opennextjs-cloudflare build && wrangler deploy"
   },
   "dependencies": {
     "@opennextjs/cloudflare": "^1.16.1",

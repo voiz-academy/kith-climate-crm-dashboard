@@ -11,8 +11,8 @@ const { createClient } = require('@supabase/supabase-js');
 const { ApifyClient } = require('apify-client');
 
 const supabase = createClient(
-  'https://zvllsngvdkmnsjydoymq.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp2bGxzbmd2ZGttbnNqeWRveW1xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzgyNDM0MjIsImV4cCI6MjA1MzgxOTQyMn0.u4hdlDewfcII7UbkfAu7CukHxNho7yIw-JoSB3S4o34'
+  'https://tfcuozmbnnswencikncv.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRmY3Vvem1ibm5zd2VuY2lrbmN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc5MzU1NDUsImV4cCI6MjA2MzUxMTU0NX0.37WDHXS2HV81Oj_V8i_HkDbXWLVkzuUA-GSZgS3YckA'
 );
 const client = new ApifyClient({ token: process.env.APIFY_TOKEN });
 
@@ -23,7 +23,7 @@ async function run() {
   }
   console.log('Token loaded:', process.env.APIFY_TOKEN.substring(0, 12) + '...');
 
-  const { data: leads } = await supabase.schema('diego').from('workshop_leads')
+  const { data: leads } = await supabase.schema('kith_climate').from('customers')
     .select('id, first_name, last_name, email')
     .is('linkedin_url', null)
     .not('last_name', 'is', null).neq('last_name', '')
@@ -44,7 +44,7 @@ async function run() {
       const { items } = await client.dataset(r.defaultDatasetId).listItems();
       if (items.length > 0) {
         const p = items[0];
-        await supabase.schema('diego').from('workshop_leads').update({
+        await supabase.schema('kith_climate').from('customers').update({
           linkedin_url: p.linkedinUrl || p.url,
           linkedin_title: p.headline || null,
           linkedin_company: p.currentPosition?.[0]?.companyName || p.positions?.[0]?.companyName || null,

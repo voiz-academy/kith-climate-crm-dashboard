@@ -1,6 +1,6 @@
 import Image from 'next/image'
 import Link from 'next/link'
-import { fetchAll, WorkshopLead } from '@/lib/supabase'
+import { fetchAll, Customer } from '@/lib/supabase'
 import { Navigation } from '@/components/Navigation'
 
 // --- Country extraction logic ---
@@ -437,13 +437,13 @@ type CountryData = {
 // --- Data fetching ---
 
 async function getLocationsData(): Promise<{ locations: LocationData[], countries: CountryData[] }> {
-  const leads = await fetchAll<WorkshopLead>('workshop_leads')
+  const leads = await fetchAll<Customer>('customers')
 
   // Aggregate by location
   const locationMap = new Map<string, LocationData>()
   const countryMap = new Map<string, CountryData>()
 
-  leads.forEach((lead: WorkshopLead) => {
+  leads.forEach((lead: Customer) => {
     const location = lead.linkedin_location
     if (!location) return
 

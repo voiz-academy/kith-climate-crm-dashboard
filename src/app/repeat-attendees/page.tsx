@@ -1,25 +1,25 @@
 import Image from 'next/image'
 import Link from 'next/link'
-import { fetchAll, WorkshopLead, WorkshopRegistration } from '@/lib/supabase'
+import { fetchAll, Customer, WorkshopRegistration } from '@/lib/supabase'
 import { Navigation } from '@/components/Navigation'
 
 async function getRepeatAttendees() {
-  const leads = await fetchAll<WorkshopLead>('workshop_leads')
+  const leads = await fetchAll<Customer>('customers')
   const registrations = await fetchAll<WorkshopRegistration>('workshop_registrations')
 
   // Build map of lead_id to attended dates
   const attendedDatesMap = new Map<string, string[]>()
   registrations.forEach((reg: WorkshopRegistration) => {
     if (reg.attended) {
-      const dates = attendedDatesMap.get(reg.lead_id) || []
+      const dates = attendedDatesMap.get(reg.customer_id) || []
       dates.push(reg.event_date)
-      attendedDatesMap.set(reg.lead_id, dates)
+      attendedDatesMap.set(reg.customer_id, dates)
     }
   })
 
   // Filter to leads who attended 2+ workshops
   const repeatAttendees = leads
-    .map((l: WorkshopLead) => ({
+    .map((l: Customer) => ({
       ...l,
       attended_dates: attendedDatesMap.get(l.id) || []
     }))

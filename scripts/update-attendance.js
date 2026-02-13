@@ -17,8 +17,8 @@ const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 
 const supabase = createClient(
-  'https://zvllsngvdkmnsjydoymq.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp2bGxzbmd2ZGttbnNqeWRveW1xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzgyNDM0MjIsImV4cCI6MjA1MzgxOTQyMn0.u4hdlDewfcII7UbkfAu7CukHxNho7yIw-JoSB3S4o34'
+  'https://tfcuozmbnnswencikncv.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRmY3Vvem1ibm5zd2VuY2lrbmN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc5MzU1NDUsImV4cCI6MjA2MzUxMTU0NX0.37WDHXS2HV81Oj_V8i_HkDbXWLVkzuUA-GSZgS3YckA'
 );
 
 function parseCSV(content) {
@@ -102,8 +102,8 @@ async function main() {
   let offset = 0;
   while (true) {
     const { data } = await supabase
-      .schema('diego')
-      .from('workshop_leads')
+      .schema('kith_climate')
+      .from('customers')
       .select('id, email')
       .range(offset, offset + 999);
     allLeads.push(...data);
@@ -130,10 +130,10 @@ async function main() {
     }
 
     const { data: reg, error: fetchError } = await supabase
-      .schema('diego')
+      .schema('kith_climate')
       .from('workshop_registrations')
       .select('id')
-      .eq('lead_id', leadId)
+      .eq('customer_id', leadId)
       .eq('event_date', eventDate)
       .single();
 
@@ -144,7 +144,7 @@ async function main() {
     }
 
     const { error: updateError } = await supabase
-      .schema('diego')
+      .schema('kith_climate')
       .from('workshop_registrations')
       .update({ attended: true })
       .eq('id', reg.id);
@@ -163,14 +163,14 @@ async function main() {
 
   // Summary
   const { count: totalAttended } = await supabase
-    .schema('diego')
+    .schema('kith_climate')
     .from('workshop_registrations')
     .select('*', { count: 'exact', head: true })
     .eq('event_date', eventDate)
     .eq('attended', true);
 
   const { count: totalRegs } = await supabase
-    .schema('diego')
+    .schema('kith_climate')
     .from('workshop_registrations')
     .select('*', { count: 'exact', head: true })
     .eq('event_date', eventDate);

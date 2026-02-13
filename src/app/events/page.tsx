@@ -1,6 +1,6 @@
 import Image from 'next/image'
 import Link from 'next/link'
-import { fetchAll, WorkshopLead, WorkshopRegistration, getEventLabel, getEventShortLabel, personalDomains } from '@/lib/supabase'
+import { fetchAll, Customer, WorkshopRegistration, getEventLabel, getEventShortLabel, personalDomains } from '@/lib/supabase'
 import { Navigation } from '@/components/Navigation'
 import { EventComparisonChart } from '@/components/EventComparisonChart'
 
@@ -24,12 +24,12 @@ type EventStats = {
 }
 
 async function getEventComparisonData(): Promise<EventStats[]> {
-  const leads = await fetchAll<WorkshopLead>('workshop_leads')
+  const leads = await fetchAll<Customer>('customers')
   const registrations = await fetchAll<WorkshopRegistration>('workshop_registrations')
 
   // Build lead lookup
-  const leadMap = new Map<string, WorkshopLead>()
-  leads.forEach((l: WorkshopLead) => leadMap.set(l.id, l))
+  const leadMap = new Map<string, Customer>()
+  leads.forEach((l: Customer) => leadMap.set(l.id, l))
 
   // Group registrations by event date
   const eventMap = new Map<string, {
@@ -58,10 +58,10 @@ async function getEventComparisonData(): Promise<EventStats[]> {
     const attended = regs.filter(r => r.attended).length
 
     // Get unique leads for this event
-    const eventLeadIds = new Set(regs.map(r => r.lead_id))
+    const eventLeadIds = new Set(regs.map(r => r.customer_id))
     const eventLeads = Array.from(eventLeadIds)
       .map(id => leadMap.get(id))
-      .filter(Boolean) as WorkshopLead[]
+      .filter(Boolean) as Customer[]
 
     const professionals = eventLeads.filter(l => l.lead_type === 'professional').length
     const pivoters = eventLeads.filter(l => l.lead_type === 'pivoter').length

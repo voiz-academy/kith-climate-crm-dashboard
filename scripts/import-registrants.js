@@ -16,8 +16,8 @@ const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 
 const supabase = createClient(
-  'https://zvllsngvdkmnsjydoymq.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp2bGxzbmd2ZGttbnNqeWRveW1xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzgyNDM0MjIsImV4cCI6MjA1MzgxOTQyMn0.u4hdlDewfcII7UbkfAu7CukHxNho7yIw-JoSB3S4o34'
+  'https://tfcuozmbnnswencikncv.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRmY3Vvem1ibm5zd2VuY2lrbmN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc5MzU1NDUsImV4cCI6MjA2MzUxMTU0NX0.37WDHXS2HV81Oj_V8i_HkDbXWLVkzuUA-GSZgS3YckA'
 );
 
 const REGISTRANTS_FOLDER = '/Users/diego/Desktop/Claude-Projects/kith-climate/Workshop Registrants';
@@ -100,8 +100,8 @@ async function main() {
 
   // Get existing leads by email for deduplication
   const { data: existingLeads } = await supabase
-    .schema('diego')
-    .from('workshop_leads')
+    .schema('kith_climate')
+    .from('customers')
     .select('id, email');
 
   const emailToLeadId = new Map();
@@ -109,7 +109,7 @@ async function main() {
 
   // Get existing registrations for this event
   const { data: existingRegs } = await supabase
-    .schema('diego')
+    .schema('kith_climate')
     .from('workshop_registrations')
     .select('source_api_id')
     .eq('event_date', eventDate);
@@ -150,8 +150,8 @@ async function main() {
     if (!leadId) {
       // Create new lead
       const { data: newLead, error } = await supabase
-        .schema('diego')
-        .from('workshop_leads')
+        .schema('kith_climate')
+        .from('customers')
         .insert({
           email,
           first_name: firstName,
@@ -174,8 +174,8 @@ async function main() {
       // Update existing lead if we have better name data
       if (firstName && lastName) {
         await supabase
-          .schema('diego')
-          .from('workshop_leads')
+          .schema('kith_climate')
+          .from('customers')
           .update({ first_name: firstName, last_name: lastName })
           .eq('id', leadId)
           .or('last_name.is.null,last_name.eq.');
@@ -187,10 +187,10 @@ async function main() {
     const attended = (row.has_joined_event || '').toLowerCase() === 'yes';
 
     const { error: regError } = await supabase
-      .schema('diego')
+      .schema('kith_climate')
       .from('workshop_registrations')
       .insert({
-        lead_id: leadId,
+        customer_id: leadId,
         event_name: 'Build a Climate Solution',
         event_date: eventDate,
         registration_date: row.created_at || new Date().toISOString(),
@@ -213,8 +213,8 @@ async function main() {
 
   // Check how many need enrichment
   const { count: needsEnrichment } = await supabase
-    .schema('diego')
-    .from('workshop_leads')
+    .schema('kith_climate')
+    .from('customers')
     .select('*', { count: 'exact', head: true })
     .is('linkedin_url', null)
     .not('first_name', 'is', null)

@@ -408,8 +408,8 @@ node scripts/audit-data.js
 ## Database
 
 ### Connection
-- **Supabase project:** `zvllsngvdkmnsjydoymq.supabase.co`
-- **Schema:** `diego` (not public)
+- **Supabase project:** `tfcuozmbnnswencikncv.supabase.co` (AI Context)
+- **Schema:** `kith_climate` (not public)
 - **Credentials:** in `.env.local`
 
 ### Schema
@@ -436,7 +436,7 @@ workshop_leads (
 
 workshop_registrations (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  lead_id           UUID REFERENCES diego.workshop_leads(id),
+  lead_id           UUID REFERENCES kith_climate.workshop_leads(id),
   event_name        TEXT NOT NULL,
   event_date        DATE NOT NULL,
   registration_date TIMESTAMPTZ,
@@ -482,11 +482,11 @@ Check these in order:
 Default page size limit. **This silently truncates results** — aggregations on fetched data will be wrong. Use count queries instead:
 ```javascript
 // WRONG — only counts first 1000
-const { data } = await supabase.schema('diego').from('workshop_leads').select('lead_type');
+const { data } = await supabase.schema('kith_climate').from('workshop_leads').select('lead_type');
 data.length; // ← capped at 1000
 
 // RIGHT — true count
-const { count } = await supabase.schema('diego').from('workshop_leads')
+const { count } = await supabase.schema('kith_climate').from('workshop_leads')
   .select('*', { count: 'exact', head: true }).eq('lead_type', 'professional');
 ```
 
@@ -501,8 +501,8 @@ If tables were created in a new Supabase schema:
 1. Dashboard → Settings → API → Exposed schemas → add schema name
 2. Run SQL:
 ```sql
-GRANT USAGE ON SCHEMA diego TO anon, authenticated;
-GRANT ALL ON ALL TABLES IN SCHEMA diego TO anon, authenticated;
+GRANT USAGE ON SCHEMA kith_climate TO anon, authenticated;
+GRANT ALL ON ALL TABLES IN SCHEMA kith_climate TO anon, authenticated;
 ```
 
 ---
