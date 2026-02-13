@@ -486,7 +486,7 @@ async function getLocationsData(): Promise<{ locations: LocationData[], countrie
   return { locations, countries }
 }
 
-export const revalidate = 60
+export const dynamic = 'force-dynamic'
 
 export default async function LocationsPage() {
   const { locations, countries } = await getLocationsData()

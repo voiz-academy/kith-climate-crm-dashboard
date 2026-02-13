@@ -16,7 +16,7 @@ async function getFunnelData() {
   return { customers, applications }
 }
 
-export const revalidate = 60
+export const dynamic = 'force-dynamic'
 
 export default async function FunnelPage() {
   const { customers, applications } = await getFunnelData()

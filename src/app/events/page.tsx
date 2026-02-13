@@ -122,7 +122,7 @@ async function getEventComparisonData(): Promise<EventStats[]> {
   return eventStats
 }
 
-export const revalidate = 60
+export const dynamic = 'force-dynamic'
 
 export default async function EventComparisonPage() {
   const events = await getEventComparisonData()

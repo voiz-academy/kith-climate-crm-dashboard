@@ -42,7 +42,7 @@ function formatAttendedDates(dates: string[]): string {
     .join(', ')
 }
 
-export const revalidate = 60
+export const dynamic = 'force-dynamic'
 
 export default async function RepeatAttendeesPage() {
   const repeatAttendees = await getRepeatAttendees()

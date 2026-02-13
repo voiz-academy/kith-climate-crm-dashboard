@@ -15,7 +15,7 @@ async function getDashboardData() {
   return { leads, registrations }
 }
 
-export const revalidate = 60 // Revalidate every 60 seconds
+export const dynamic = 'force-dynamic'
 
 export default async function Dashboard() {
   const { leads, registrations } = await getDashboardData()

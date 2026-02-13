@@ -70,7 +70,7 @@ async function getCompaniesData(): Promise<CompanyData[]> {
     .sort((a, b) => b.leadCount - a.leadCount)
 }
 
-export const revalidate = 60
+export const dynamic = 'force-dynamic'
 
 export default async function CompaniesPage() {
   const companies = await getCompaniesData()
