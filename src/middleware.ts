@@ -5,21 +5,25 @@ const ACCESS_KEY = 'kith2026'
 export function middleware(request: NextRequest) {
   const { pathname, searchParams } = request.nextUrl
 
-  // Don't protect the login page or static assets
-  if (pathname === '/login' || pathname.startsWith('/_next') || pathname.startsWith('/favicon')) {
+  // Don't protect login page, auth API, or static assets
+  if (
+    pathname === '/login' ||
+    pathname === '/api/auth' ||
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/favicon')
+  ) {
     return NextResponse.next()
   }
 
-  // Check for ?key= param — set cookie and redirect to clean URL
+  // Check for ?key= param — set cookie and continue (no redirect)
   const keyParam = searchParams.get('key')
   if (keyParam === ACCESS_KEY) {
-    const url = request.nextUrl.clone()
-    url.searchParams.delete('key')
-    const response = NextResponse.redirect(url)
+    const response = NextResponse.next()
     response.cookies.set('kith-access', 'granted', {
       httpOnly: true,
       maxAge: 60 * 60 * 24 * 7, // 7 days
       sameSite: 'lax',
+      path: '/',
     })
     return response
   }
@@ -33,6 +37,7 @@ export function middleware(request: NextRequest) {
   // Not authenticated — redirect to login
   const loginUrl = request.nextUrl.clone()
   loginUrl.pathname = '/login'
+  loginUrl.searchParams.delete('key')
   return NextResponse.redirect(loginUrl)
 }
 
