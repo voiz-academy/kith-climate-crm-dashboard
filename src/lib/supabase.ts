@@ -45,6 +45,8 @@ export const FUNNEL_LABELS: Record<FunnelStatus, string> = {
 }
 
 // Central customer hub type
+export type EnrichmentStatus = 'pending' | 'enriching' | 'enriched' | 'failed' | 'skipped'
+
 export type Customer = {
   id: string
   email: string
@@ -54,6 +56,7 @@ export type Customer = {
   lead_type: 'professional' | 'pivoter' | 'unknown'
   classification_confidence: 'high' | 'medium' | 'low' | null
   funnel_status: FunnelStatus
+  enrichment_status: EnrichmentStatus
   linkedin_url: string | null
   linkedin_title: string | null
   linkedin_company: string | null

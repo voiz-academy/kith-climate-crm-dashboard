@@ -5,6 +5,7 @@ import { SegmentChart } from '@/components/SegmentChart'
 import { EventChart } from '@/components/EventChart'
 import { LeadTableContainer } from '@/components/LeadTableContainer'
 import { Navigation } from '@/components/Navigation'
+import { EnrichmentStatus } from '@/components/EnrichmentStatus'
 
 async function getDashboardData() {
   const leads = await fetchAll<Customer>('customers', {
@@ -95,7 +96,7 @@ export default async function Dashboard() {
       {/* Main content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Stats row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
           <StatCard
             title="Total Leads"
             value={totalLeads}
@@ -117,6 +118,7 @@ export default async function Dashboard() {
             value={pivoters}
             subtitle="Career transitioners"
           />
+          <EnrichmentStatus />
         </div>
 
         {/* Charts row */}
