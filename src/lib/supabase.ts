@@ -130,9 +130,12 @@ export type InterviewBooking = {
 export type Interview = {
   id: string
   customer_id: string
+  interviewee_name: string | null
+  interviewee_email: string | null
   booking_id: string | null
-  zoom_meeting_id: string | null
-  zoom_recording_url: string | null
+  fathom_recording_id: number | null
+  fathom_recording_url: string | null
+  fathom_summary: string | null
   transcript: string | null
   interviewer_notes: string | null
   outcome: 'approved' | 'rejected' | 'waitlisted' | 'pending' | null
@@ -141,6 +144,9 @@ export type Interview = {
   cohort: string | null
   created_at: string
   updated_at: string
+  activity_type: string | null
+  applicant_scoring: number | null
+  interviewer: string | null
 }
 
 export type Payment = {
