@@ -13,9 +13,11 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
 export type FunnelStatus =
   | 'registered'
   | 'applied'
+  | 'application_rejected'
   | 'invited_to_interview'
   | 'booked'
   | 'interviewed'
+  | 'interview_rejected'
   | 'invited_to_enrol'
   | 'enrolled'
   | 'no_show'
@@ -28,15 +30,18 @@ export const FUNNEL_STAGES: FunnelStatus[] = [
 ]
 
 export const SIDE_STATUSES: FunnelStatus[] = [
+  'application_rejected', 'interview_rejected',
   'no_show', 'offer_expired', 'not_invited'
 ]
 
 export const FUNNEL_LABELS: Record<FunnelStatus, string> = {
   registered: 'Registered',
   applied: 'Applied',
+  application_rejected: 'Application Rejected',
   invited_to_interview: 'Invited to Interview',
   booked: 'Booked',
   interviewed: 'Interviewed',
+  interview_rejected: 'Interview Rejected',
   invited_to_enrol: 'Invited to Enrol',
   enrolled: 'Enrolled',
   no_show: 'No Show',
@@ -64,6 +69,7 @@ export type Customer = {
   linkedin_industry: string | null
   linkedin_location: string | null
   climate_signals: Record<string, unknown> | null
+  enrollment_deadline: string | null
   created_at: string
   updated_at: string
 }
