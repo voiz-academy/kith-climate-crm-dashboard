@@ -1,5 +1,5 @@
 name = "kith-climate-crm-dashboard"
-account_id = "e7df47e5318cfbb9a579cdbc94ed5657"
+account_id = "eb40acdba9d5e329d38c1bae93b5f524"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
