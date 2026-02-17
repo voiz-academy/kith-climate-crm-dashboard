@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server"
 import { NextResponse } from "next/server"
 import { auth0 } from "@/lib/auth0"
+import { isEmailAllowed } from "@/lib/whitelist"
 
 export async function middleware(request: NextRequest) {
   // Let Auth0 handle its own routes (/auth/login, /auth/callback, /auth/logout, etc.)
@@ -10,6 +11,18 @@ export async function middleware(request: NextRequest) {
 
   // For /auth/* paths, return the Auth0 response directly
   if (pathname.startsWith("/auth")) {
+    return authResponse
+  }
+
+  // Allow the access-denied page to render without whitelist check
+  if (pathname === "/access-denied") {
+    // Still require Auth0 session so we can show who's logged in
+    const session = await auth0.getSession(request)
+    if (!session) {
+      const loginUrl = new URL("/auth/login", request.url)
+      loginUrl.searchParams.set("returnTo", pathname)
+      return NextResponse.redirect(loginUrl)
+    }
     return authResponse
   }
 
@@ -30,6 +43,11 @@ export async function middleware(request: NextRequest) {
     const loginUrl = new URL("/auth/login", request.url)
     loginUrl.searchParams.set("returnTo", pathname)
     return NextResponse.redirect(loginUrl)
+  }
+
+  // Check email whitelist — only allowed emails can access the CRM
+  if (!isEmailAllowed(session.user?.email)) {
+    return NextResponse.redirect(new URL("/access-denied", request.url))
   }
 
   return authResponse
