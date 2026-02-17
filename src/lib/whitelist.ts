@@ -7,8 +7,15 @@
  * To add/remove users, edit this list and redeploy.
  */
 export const ALLOWED_EMAILS: string[] = [
-  'ben@kithailab.com',
+  'benh@voiz.academy',
+  'diego@voiz.academy',
+  'yvonne@voiz.academy',
   'diego@kithailab.com',
+  'ben@kithailab.com',
+  'alex@kithailab.com',
+  'william@kithailab.com',
+  'william@kith.build',
+  'alex@kith.build',
 ]
 
 /**
