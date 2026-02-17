@@ -12,7 +12,7 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import {
-  fetchAllMeetings,
+  fetchAllMeetingsFromAllAccounts,
   extractInterviewData,
   findCustomerByEmail,
   upsertInterview,
@@ -20,9 +20,6 @@ import {
 } from '@/lib/fathom'
 
 export const dynamic = 'force-dynamic'
-
-// Ben's primary email for Fathom API filtering
-const BEN_EMAIL = 'ben@kithailab.com'
 
 export async function POST() {
   try {
@@ -46,13 +43,13 @@ export async function POST() {
       }
     })
 
-    // 2. Fetch all meetings from Fathom
-    console.log(`Backfill: Fetching all meetings for ${BEN_EMAIL}...`)
-    const meetings = await fetchAllMeetings(BEN_EMAIL, {
+    // 2. Fetch all meetings from all Fathom accounts (Ben + Diego)
+    console.log('Backfill: Fetching meetings from all Fathom accounts...')
+    const meetings = await fetchAllMeetingsFromAllAccounts({
       includeTranscript: true,
       includeSummary: true,
     })
-    console.log(`Backfill: Found ${meetings.length} total meetings from Fathom`)
+    console.log(`Backfill: Found ${meetings.length} total meetings across all accounts`)
 
     // 3. Process each meeting
     const results = {

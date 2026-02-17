@@ -42,3 +42,18 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# claude code local settings
+.claude/settings.local.json
+
+# one-off scripts, data dumps, and working files
+*.py
+*.sql
+*.txt
+!README.txt
+fathom_*.json
+scripts/
+PLAN.md
+deploy.ps1
+nul
+update_transcripts.mjs

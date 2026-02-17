@@ -1,10 +1,9 @@
-import Image from 'next/image'
 import { fetchAll, Customer, WorkshopRegistration, getEventShortLabel } from '@/lib/supabase'
 import { StatCard } from '@/components/StatCard'
 import { SegmentChart } from '@/components/SegmentChart'
 import { EventChart } from '@/components/EventChart'
 import { LeadTableContainer } from '@/components/LeadTableContainer'
-import { Navigation } from '@/components/Navigation'
+import { Header } from '@/components/Header'
 import { EnrichmentStatus } from '@/components/EnrichmentStatus'
 
 async function getDashboardData() {
@@ -67,31 +66,7 @@ export default async function Dashboard() {
   return (
     <div className="min-h-screen">
       {/* Header */}
-      <header className="border-b border-[var(--color-border)]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-6">
-              <Image
-                src="/kith-climate-wordmark.svg"
-                alt="Kith Climate"
-                width={140}
-                height={32}
-                priority
-              />
-              <div className="h-6 w-px bg-[var(--color-border)]" />
-              <Navigation />
-            </div>
-            <div className="text-xs text-[var(--color-text-muted)] font-mono">
-              {new Date().toLocaleString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-              })}
-            </div>
-          </div>
-        </div>
-      </header>
+      <Header />
 
       {/* Main content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

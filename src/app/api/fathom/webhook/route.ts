@@ -10,11 +10,12 @@
 import { NextResponse } from 'next/server'
 import {
   verifyWebhookSignature,
-  fetchMeeting,
+  fetchMeetingFromAnyAccount,
   extractInterviewData,
   findCustomerByEmail,
   upsertInterview,
 } from '@/lib/fathom'
+import { getSecrets } from '@/lib/secrets'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,14 +25,22 @@ export async function POST(request: Request) {
     const rawBody = await request.text()
     const signature = request.headers.get('x-fathom-signature') || ''
 
-    // 2. Verify webhook signature
-    const secret = process.env.FATHOM_WEBHOOK_SECRET
-    if (!secret) {
-      console.error('FATHOM_WEBHOOK_SECRET not configured')
+    // 2. Verify webhook signature (try all configured secrets from Supabase)
+    const secretMap = await getSecrets(['FATHOM_WEBHOOK_SECRET', 'FATHOM_WEBHOOK_SECRET_DIEGO'])
+    const secrets = Object.values(secretMap)
+
+    if (secrets.length === 0) {
+      console.error('No FATHOM_WEBHOOK_SECRET found in app_secrets')
       return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 })
     }
 
-    const isValid = await verifyWebhookSignature(rawBody, signature, secret)
+    let isValid = false
+    for (const secret of secrets) {
+      if (await verifyWebhookSignature(rawBody, signature, secret)) {
+        isValid = true
+        break
+      }
+    }
     if (!isValid) {
       console.warn('Invalid Fathom webhook signature')
       return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
@@ -51,8 +60,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing recording_id' }, { status: 400 })
     }
 
-    // 4. Fetch full meeting data from Fathom API
-    const meeting = await fetchMeeting(recordingId)
+    // 4. Fetch full meeting data from Fathom API (tries all accounts)
+    const meeting = await fetchMeetingFromAnyAccount(recordingId)
     const interviewData = extractInterviewData(meeting)
 
     // 5. Find or skip customer matching

@@ -12,6 +12,7 @@
     "cf:deploy": "opennextjs-cloudflare build && wrangler deploy"
   },
   "dependencies": {
+    "@auth0/nextjs-auth0": "^4.15.0",
     "@opennextjs/cloudflare": "^1.16.1",
     "@supabase/supabase-js": "^2.93.1",
     "apify-client": "^2.22.0",
