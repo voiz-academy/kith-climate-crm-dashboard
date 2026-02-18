@@ -1,12 +1,42 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+// Use non-NEXT_PUBLIC_ env vars (read at runtime on Cloudflare Workers)
+// with NEXT_PUBLIC_ as fallback (inlined at build time by Next.js).
+// This ensures the correct Supabase project is used regardless of which
+// build pipeline produces the bundle.
+function getSupabaseUrl(): string {
+  return process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+}
 
-export const supabase = createClient(supabaseUrl, supabaseKey, {
-  db: {
-    schema: 'kith_climate'
+function getSupabaseKey(): string {
+  return process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnySupabaseClient = SupabaseClient<any, any, any, any, any>
+
+// Lazy singleton — created on first access so runtime env vars are available
+let _supabase: AnySupabaseClient | null = null
+
+export function getSupabase(): AnySupabaseClient {
+  if (!_supabase) {
+    const url = getSupabaseUrl()
+    const key = getSupabaseKey()
+    if (!url || !key) {
+      throw new Error(`Supabase config missing: url=${url ? 'set' : 'MISSING'}, key=${key ? 'set' : 'MISSING'}`)
+    }
+    _supabase = createClient(url, key, {
+      db: { schema: 'kith_climate' }
+    })
   }
+  return _supabase
+}
+
+/** @deprecated Use getSupabase() — kept for backwards compatibility */
+export const supabase = new Proxy({} as AnySupabaseClient, {
+  get(_target, prop) {
+    return (getSupabase() as unknown as Record<string | symbol, unknown>)[prop]
+  },
 })
 
 // Funnel status types and helpers
@@ -205,9 +235,10 @@ export async function fetchAll<T>(
 ): Promise<T[]> {
   const allRows: T[] = []
   let from = 0
+  const client = getSupabase()
 
   while (true) {
-    let query = supabase.from(table).select('*').range(from, from + PAGE_SIZE - 1)
+    let query = client.from(table).select('*').range(from, from + PAGE_SIZE - 1)
 
     if (options?.orderBy) {
       query = query.order(options.orderBy, { ascending: options.ascending ?? true })

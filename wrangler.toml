@@ -21,6 +21,9 @@ custom_domain = true
 [vars]
 NEXT_PUBLIC_SUPABASE_URL = "https://tfcuozmbnnswencikncv.supabase.co"
 NEXT_PUBLIC_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRmY3Vvem1ibm5zd2VuY2lrbmN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc5MzU1NDUsImV4cCI6MjA2MzUxMTU0NX0.37WDHXS2HV81Oj_V8i_HkDbXWLVkzuUA-GSZgS3YckA"
+# Runtime-only vars (not inlined by Next.js at build time — immune to build env issues)
+SUPABASE_URL = "https://tfcuozmbnnswencikncv.supabase.co"
+SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRmY3Vvem1ibm5zd2VuY2lrbmN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc5MzU1NDUsImV4cCI6MjA2MzUxMTU0NX0.37WDHXS2HV81Oj_V8i_HkDbXWLVkzuUA-GSZgS3YckA"
 
 # Auth0 (non-secret values — secrets set via `wrangler secret put`)
 AUTH0_DOMAIN = "auth.kith.build"

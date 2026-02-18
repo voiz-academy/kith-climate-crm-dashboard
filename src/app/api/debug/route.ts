@@ -1,18 +1,20 @@
 import { NextResponse } from 'next/server'
-import { supabase, fetchAll, Customer } from '@/lib/supabase'
+import { getSupabase, fetchAll, Customer } from '@/lib/supabase'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
   const diagnostics: Record<string, unknown> = {}
 
-  // 1. Check env vars
-  diagnostics.supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '(not set)'
-  diagnostics.anonKeyPresent = !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  diagnostics.anonKeyLength = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.length ?? 0
+  // 1. Check env vars (both runtime and build-time)
+  diagnostics.runtimeSupabaseUrl = process.env.SUPABASE_URL ?? '(not set)'
+  diagnostics.buildTimeSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '(not set)'
+  diagnostics.runtimeAnonKeyPresent = !!process.env.SUPABASE_ANON_KEY
+  diagnostics.buildTimeAnonKeyPresent = !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
   // 2. Try a raw Supabase query
   try {
+    const supabase = getSupabase()
     const { data, error, count } = await supabase
       .from('customers')
       .select('id', { count: 'exact', head: true })
