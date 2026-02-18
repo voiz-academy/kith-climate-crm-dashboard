@@ -7,9 +7,7 @@ const navItems = [
   { href: '/', label: 'Dashboard' },
   { href: '/funnel', label: 'Funnel' },
   { href: '/events', label: 'Events' },
-  { href: '/repeat-attendees', label: 'Repeat Attendees' },
-  { href: '/companies', label: 'Companies' },
-  { href: '/locations', label: 'Locations' },
+  { href: '/traffic', label: 'Traffic' },
 ]
 
 export function Navigation() {
@@ -18,7 +16,9 @@ export function Navigation() {
   return (
     <nav className="flex items-center gap-1">
       {navItems.map((item) => {
-        const isActive = pathname === item.href
+        const isActive = item.href === '/'
+          ? pathname === '/'
+          : pathname.startsWith(item.href)
         return (
           <Link
             key={item.href}

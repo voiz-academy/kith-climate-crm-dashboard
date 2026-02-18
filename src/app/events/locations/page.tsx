@@ -1,5 +1,4 @@
 import { fetchAll, Customer } from '@/lib/supabase'
-import { Header } from '@/components/Header'
 
 // --- Country extraction logic ---
 
@@ -500,137 +499,124 @@ export default async function LocationsPage() {
   const otherTotal = otherCountries.reduce((sum, c) => sum + c.leadCount, 0)
 
   return (
-    <div className="min-h-screen">
-      <Header />
+    <>
+      <div className="mb-8">
+        <h1 className="text-2xl font-semibold text-[var(--color-text-primary)]">
+          Locations
+        </h1>
+        <p className="text-sm text-[var(--color-text-tertiary)] mt-1">
+          {totalLeadsWithLocation} leads across {totalCountries} countries
+        </p>
+      </div>
 
-      {/* Main content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Page header */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-semibold text-[var(--color-text-primary)]">
-            Locations
-          </h1>
-          <p className="text-sm text-[var(--color-text-tertiary)] mt-1">
-            {totalLeadsWithLocation} leads across {totalCountries} countries
-          </p>
-        </div>
-
-        {/* Country dashboard */}
-        <div className="mb-8">
-          <h2 className="kith-label mb-4">Countries</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {topCountries.map((c) => (
-              <div key={c.country} className="kith-card p-4">
-                <div className="text-2xl font-semibold text-[var(--color-text-primary)]">
-                  {c.leadCount}
-                </div>
-                <div className="text-sm text-[var(--color-text-secondary)] mt-1">
-                  {c.country}
-                </div>
-                <div className="flex gap-3 mt-2 text-xs">
-                  {c.professionals > 0 && (
-                    <span className="text-[#5B9A8B]">{c.professionals} pro</span>
-                  )}
-                  {c.pivoters > 0 && (
-                    <span className="text-[#6B8DD6]">{c.pivoters} piv</span>
-                  )}
-                </div>
+      {/* Country dashboard */}
+      <div className="mb-8">
+        <h2 className="kith-label mb-4">Countries</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+          {topCountries.map((c) => (
+            <div key={c.country} className="kith-card p-4">
+              <div className="text-2xl font-semibold text-[var(--color-text-primary)]">
+                {c.leadCount}
               </div>
-            ))}
-            {otherTotal > 0 && (
-              <div className="kith-card p-4">
-                <div className="text-2xl font-semibold text-[var(--color-text-primary)]">
-                  {otherTotal}
-                </div>
-                <div className="text-sm text-[var(--color-text-secondary)] mt-1">
-                  Other ({otherCountries.length} countries)
-                </div>
+              <div className="text-sm text-[var(--color-text-secondary)] mt-1">
+                {c.country}
               </div>
-            )}
-          </div>
-        </div>
-
-        {/* Locations detail table */}
-        <div className="kith-card">
-          <div className="px-6 py-4 border-b border-[var(--color-border)]">
-            <h3 className="text-base font-medium text-[var(--color-text-primary)]">
-              All Locations
-            </h3>
-            <p className="text-xs text-[var(--color-text-muted)] mt-1">
-              {totalLocations} unique locations
-            </p>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full">
-              <thead>
-                <tr className="border-b border-[var(--color-border)]">
-                  <th className="px-6 py-3 text-left kith-label">Location</th>
-                  <th className="px-6 py-3 text-left kith-label">Country</th>
-                  <th className="px-6 py-3 text-left kith-label">Leads</th>
-                  <th className="px-6 py-3 text-left kith-label">Professionals</th>
-                  <th className="px-6 py-3 text-left kith-label">Pivoters</th>
-                </tr>
-              </thead>
-              <tbody>
-                {locations.map((loc) => (
-                  <tr
-                    key={loc.location}
-                    className="border-b border-[var(--color-border-subtle)] hover:bg-[rgba(91,154,139,0.05)] transition-colors"
-                  >
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-[var(--color-text-primary)]">
-                        {loc.location}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-[var(--color-text-secondary)]">
-                        {loc.country}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="inline-flex items-center justify-center min-w-[2rem] px-2 py-1 rounded-full bg-[var(--color-surface)] text-sm font-medium text-[var(--color-text-secondary)]">
-                        {loc.leadCount}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {loc.professionals > 0 ? (
-                        <span className="inline-flex items-center justify-center min-w-[2rem] px-2 py-1 rounded-full bg-[rgba(91,154,139,0.15)] text-sm font-medium text-[#5B9A8B]">
-                          {loc.professionals}
-                        </span>
-                      ) : (
-                        <span className="text-[var(--color-text-muted)]">-</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {loc.pivoters > 0 ? (
-                        <span className="inline-flex items-center justify-center min-w-[2rem] px-2 py-1 rounded-full bg-[rgba(107,141,214,0.15)] text-sm font-medium text-[#6B8DD6]">
-                          {loc.pivoters}
-                        </span>
-                      ) : (
-                        <span className="text-[var(--color-text-muted)]">-</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-                {locations.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-[var(--color-text-muted)]">
-                      No location data found
-                    </td>
-                  </tr>
+              <div className="flex gap-3 mt-2 text-xs">
+                {c.professionals > 0 && (
+                  <span className="text-[#5B9A8B]">{c.professionals} pro</span>
                 )}
-              </tbody>
-            </table>
-          </div>
+                {c.pivoters > 0 && (
+                  <span className="text-[#6B8DD6]">{c.pivoters} piv</span>
+                )}
+              </div>
+            </div>
+          ))}
+          {otherTotal > 0 && (
+            <div className="kith-card p-4">
+              <div className="text-2xl font-semibold text-[var(--color-text-primary)]">
+                {otherTotal}
+              </div>
+              <div className="text-sm text-[var(--color-text-secondary)] mt-1">
+                Other ({otherCountries.length} countries)
+              </div>
+            </div>
+          )}
         </div>
+      </div>
 
-        {/* Footer */}
-        <footer className="mt-12 pt-6 border-t border-[var(--color-border)]">
-          <p className="text-xs text-[var(--color-text-muted)] text-center">
-            Part of Kith AI Lab
+      {/* Locations detail table */}
+      <div className="kith-card">
+        <div className="px-6 py-4 border-b border-[var(--color-border)]">
+          <h3 className="text-base font-medium text-[var(--color-text-primary)]">
+            All Locations
+          </h3>
+          <p className="text-xs text-[var(--color-text-muted)] mt-1">
+            {totalLocations} unique locations
           </p>
-        </footer>
-      </main>
-    </div>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="min-w-full">
+            <thead>
+              <tr className="border-b border-[var(--color-border)]">
+                <th className="px-6 py-3 text-left kith-label">Location</th>
+                <th className="px-6 py-3 text-left kith-label">Country</th>
+                <th className="px-6 py-3 text-left kith-label">Leads</th>
+                <th className="px-6 py-3 text-left kith-label">Professionals</th>
+                <th className="px-6 py-3 text-left kith-label">Pivoters</th>
+              </tr>
+            </thead>
+            <tbody>
+              {locations.map((loc) => (
+                <tr
+                  key={loc.location}
+                  className="border-b border-[var(--color-border-subtle)] hover:bg-[rgba(91,154,139,0.05)] transition-colors"
+                >
+                  <td className="px-6 py-4">
+                    <div className="text-sm text-[var(--color-text-primary)]">
+                      {loc.location}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="text-sm text-[var(--color-text-secondary)]">
+                      {loc.country}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className="inline-flex items-center justify-center min-w-[2rem] px-2 py-1 rounded-full bg-[var(--color-surface)] text-sm font-medium text-[var(--color-text-secondary)]">
+                      {loc.leadCount}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {loc.professionals > 0 ? (
+                      <span className="inline-flex items-center justify-center min-w-[2rem] px-2 py-1 rounded-full bg-[rgba(91,154,139,0.15)] text-sm font-medium text-[#5B9A8B]">
+                        {loc.professionals}
+                      </span>
+                    ) : (
+                      <span className="text-[var(--color-text-muted)]">-</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {loc.pivoters > 0 ? (
+                      <span className="inline-flex items-center justify-center min-w-[2rem] px-2 py-1 rounded-full bg-[rgba(107,141,214,0.15)] text-sm font-medium text-[#6B8DD6]">
+                        {loc.pivoters}
+                      </span>
+                    ) : (
+                      <span className="text-[var(--color-text-muted)]">-</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {locations.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center text-[var(--color-text-muted)]">
+                    No location data found
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </>
   )
 }

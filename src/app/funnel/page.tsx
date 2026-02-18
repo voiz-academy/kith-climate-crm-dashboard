@@ -1,6 +1,6 @@
 import {
-  fetchAll, Customer, CohortApplication,
-  FUNNEL_STAGES, SIDE_STATUSES, FUNNEL_LABELS,
+  fetchAll, Customer, CohortApplication, Interview, Email, Payment,
+  FUNNEL_LABELS, SIDE_STATUSES,
   type FunnelStatus
 } from '@/lib/supabase'
 import { Header } from '@/components/Header'
@@ -8,31 +8,100 @@ import { StatCard } from '@/components/StatCard'
 import { FunnelChart } from '@/components/FunnelChart'
 import { FunnelStageDetail } from '@/components/FunnelStageDetail'
 
+/** The 5 funnel stages we display (no 'registered') */
+const ACTIVE_FUNNEL_STAGES: FunnelStatus[] = [
+  'applied',
+  'invited_to_interview',
+  'interviewed',
+  'invited_to_enrol',
+  'enrolled',
+]
+
 async function getFunnelData() {
-  const customers = await fetchAll<Customer>('customers')
-  const applications = await fetchAll<CohortApplication>('cohort_applications')
-  return { customers, applications }
+  const [customers, applications, interviews, emails, payments] = await Promise.all([
+    fetchAll<Customer>('customers'),
+    fetchAll<CohortApplication>('cohort_applications'),
+    fetchAll<Interview>('interviews'),
+    fetchAll<Email>('emails'),
+    fetchAll<Payment>('payments'),
+  ])
+  return { customers, applications, interviews, emails, payments }
 }
 
 export const dynamic = 'force-dynamic'
 
 export default async function FunnelPage() {
-  const { customers, applications } = await getFunnelData()
+  const { customers, applications, interviews, emails, payments } = await getFunnelData()
 
-  // Count by funnel stage
+  // Filter out 'registered' customers — only show those who have progressed
+  const activeCustomers = customers.filter(c => c.funnel_status !== 'registered')
+
+  // Build lookup maps by customer_id for enrichment
+  const applicationsByCustomer = new Map<string, CohortApplication>()
+  applications.forEach(a => {
+    if (!a.customer_id) return
+    // Keep the latest application per customer
+    const existing = applicationsByCustomer.get(a.customer_id)
+    if (!existing || a.created_at > existing.created_at) {
+      applicationsByCustomer.set(a.customer_id, a)
+    }
+  })
+
+  const interviewsByCustomer = new Map<string, Interview>()
+  interviews.forEach(i => {
+    const existing = interviewsByCustomer.get(i.customer_id)
+    if (!existing || i.created_at > existing.created_at) {
+      interviewsByCustomer.set(i.customer_id, i)
+    }
+  })
+
+  // Invite-to-interview emails (outbound, email_type = 'invite_to_interview')
+  const interviewInvitesByCustomer = new Map<string, Email>()
+  emails
+    .filter(e => e.email_type === 'invite_to_interview' && e.direction === 'outbound')
+    .forEach(e => {
+      const existing = interviewInvitesByCustomer.get(e.customer_id)
+      if (!existing || e.sent_at > existing.sent_at) {
+        interviewInvitesByCustomer.set(e.customer_id, e)
+      }
+    })
+
+  // Invite-to-enrol emails (outbound, email_type = 'invite_to_enrol')
+  const enrolInvitesByCustomer = new Map<string, Email>()
+  emails
+    .filter(e => e.email_type === 'invite_to_enrol' && e.direction === 'outbound')
+    .forEach(e => {
+      const existing = enrolInvitesByCustomer.get(e.customer_id)
+      if (!existing || e.sent_at > existing.sent_at) {
+        enrolInvitesByCustomer.set(e.customer_id, e)
+      }
+    })
+
+  const paymentsByCustomer = new Map<string, Payment>()
+  payments
+    .filter(p => p.status === 'succeeded')
+    .forEach(p => {
+      const custId = p.enrollee_customer_id || p.customer_id
+      const existing = paymentsByCustomer.get(custId)
+      if (!existing || (p.paid_at || p.created_at) > (existing.paid_at || existing.created_at)) {
+        paymentsByCustomer.set(custId, p)
+      }
+    })
+
+  // Count by funnel stage (active customers only)
   const stageCounts = new Map<FunnelStatus, number>()
-  ;[...FUNNEL_STAGES, ...SIDE_STATUSES].forEach(s => stageCounts.set(s, 0))
-  customers.forEach(c => {
+  ;[...ACTIVE_FUNNEL_STAGES, ...SIDE_STATUSES].forEach(s => stageCounts.set(s, 0))
+  activeCustomers.forEach(c => {
     stageCounts.set(c.funnel_status, (stageCounts.get(c.funnel_status) || 0) + 1)
   })
 
   // Summary stats
-  const totalCustomers = customers.length
+  const totalActive = activeCustomers.length
   const totalApplicants = stageCounts.get('applied') || 0
   const totalEnrolled = stageCounts.get('enrolled') || 0
-  const conversionRate = totalCustomers > 0
-    ? ((totalApplicants / totalCustomers) * 100).toFixed(1)
-    : '0'
+  const totalInterviewed = (stageCounts.get('interviewed') || 0) +
+    (stageCounts.get('invited_to_enrol') || 0) +
+    (stageCounts.get('enrolled') || 0)
 
   // Application overlap stat
   const applicantsWithWorkshops = applications.filter(a => {
@@ -40,12 +109,12 @@ export default async function FunnelPage() {
     return customer && customer.lead_type !== 'unknown'
   }).length
 
-  // Chart data
-  const funnelData = FUNNEL_STAGES.map(stage => ({
+  // Chart data (only active stages)
+  const funnelData = ACTIVE_FUNNEL_STAGES.map(stage => ({
     stage,
     count: stageCounts.get(stage) || 0,
-    percentage: totalCustomers > 0
-      ? Math.round(((stageCounts.get(stage) || 0) / totalCustomers) * 100)
+    percentage: totalActive > 0
+      ? Math.round(((stageCounts.get(stage) || 0) / totalActive) * 100)
       : 0,
   }))
 
@@ -82,19 +151,19 @@ export default async function FunnelPage() {
         {/* Summary stat cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <StatCard
-            title="Total Customers"
-            value={totalCustomers}
-            subtitle={`Across all funnel stages`}
+            title="In Pipeline"
+            value={totalActive}
+            subtitle="Customers past registration"
           />
           <StatCard
             title="Applicants"
             value={totalApplicants}
-            subtitle={`${conversionRate}% of registered`}
+            subtitle={`${applications.length} total applications`}
             accent
           />
           <StatCard
-            title="Applications"
-            value={applications.length}
+            title="Interviewed"
+            value={totalInterviewed}
             subtitle={`${applicantsWithWorkshops} also attended workshops`}
           />
           <StatCard
@@ -143,9 +212,9 @@ export default async function FunnelPage() {
             <div className="kith-card p-6">
               <h3 className="kith-label mb-4">Stage Breakdown</h3>
               <div className="space-y-2">
-                {FUNNEL_STAGES.map((stage) => {
+                {ACTIVE_FUNNEL_STAGES.map((stage) => {
                   const count = stageCounts.get(stage) || 0
-                  const pct = totalCustomers > 0 ? Math.round((count / totalCustomers) * 100) : 0
+                  const pct = totalActive > 0 ? Math.round((count / totalActive) * 100) : 0
                   return (
                     <div key={stage} className="flex items-center justify-between py-1.5">
                       <span className="text-sm text-[var(--color-text-secondary)]">
@@ -180,7 +249,15 @@ export default async function FunnelPage() {
               Click a stage to view customers
             </p>
           </div>
-          <FunnelStageDetail customers={customers} />
+          <FunnelStageDetail
+            customers={activeCustomers}
+            stages={ACTIVE_FUNNEL_STAGES}
+            applicationsByCustomer={Object.fromEntries(applicationsByCustomer)}
+            interviewsByCustomer={Object.fromEntries(interviewsByCustomer)}
+            interviewInvitesByCustomer={Object.fromEntries(interviewInvitesByCustomer)}
+            enrolInvitesByCustomer={Object.fromEntries(enrolInvitesByCustomer)}
+            paymentsByCustomer={Object.fromEntries(paymentsByCustomer)}
+          />
         </div>
 
         {/* Footer */}

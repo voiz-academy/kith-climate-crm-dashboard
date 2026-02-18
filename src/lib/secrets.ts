@@ -1,49 +1,33 @@
-import { supabase } from './supabase'
-
-const cache = new Map<string, string>()
+/**
+ * Secrets management — reads from process.env (environment variables).
+ *
+ * The Next.js app only needs Fathom API keys for the /api/fathom/backfill
+ * endpoint. All webhook processing (Fathom, Calendly, Stripe) is handled
+ * by Supabase Edge Functions which access secrets via Deno.env.get().
+ *
+ * Expected env vars for Next.js:
+ *   FATHOM_API_KEY, FATHOM_API_KEY_DIEGO
+ *
+ * Secrets managed in Supabase Edge Function Secrets (not used here):
+ *   FATHOM_WEBHOOK_SECRET, FATHOM_WEBHOOK_SECRET_DIEGO,
+ *   STRIPE_WEBHOOK_SECRET, CALENDLY_API_TOKEN
+ */
 
 /**
- * Fetch a secret from the kith_climate.app_secrets table.
- * Values are cached in-memory for the lifetime of the request/worker.
+ * Fetch a secret from environment variables.
  */
-export async function getSecret(key: string): Promise<string | undefined> {
-  if (cache.has(key)) return cache.get(key)
-
-  const { data, error } = await supabase
-    .from('app_secrets')
-    .select('value')
-    .eq('key', key)
-    .single()
-
-  if (error || !data) return undefined
-
-  cache.set(key, data.value)
-  return data.value
+export function getSecret(key: string): string | undefined {
+  return process.env[key] || undefined
 }
 
 /**
  * Fetch multiple secrets at once.
  * Returns a map of key -> value for all found secrets.
  */
-export async function getSecrets(keys: string[]): Promise<Record<string, string>> {
-  const uncached = keys.filter(k => !cache.has(k))
-
-  if (uncached.length > 0) {
-    const { data } = await supabase
-      .from('app_secrets')
-      .select('key, value')
-      .in('key', uncached)
-
-    if (data) {
-      for (const row of data) {
-        cache.set(row.key, row.value)
-      }
-    }
-  }
-
+export function getSecrets(keys: string[]): Record<string, string> {
   const result: Record<string, string> = {}
   for (const key of keys) {
-    const val = cache.get(key)
+    const val = process.env[key]
     if (val) result[key] = val
   }
   return result

@@ -1,5 +1,4 @@
 import { fetchAll, Customer, WorkshopRegistration } from '@/lib/supabase'
-import { Header } from '@/components/Header'
 
 type CompanyData = {
   name: string
@@ -77,41 +76,28 @@ export default async function CompaniesPage() {
   const companiesWithMultiple = companies.filter(c => c.leadCount > 1).length
 
   return (
-    <div className="min-h-screen">
-      <Header />
+    <>
+      <div className="mb-8">
+        <h1 className="text-2xl font-semibold text-[var(--color-text-primary)]">
+          Companies
+        </h1>
+        <p className="text-sm text-[var(--color-text-tertiary)] mt-1">
+          {totalCompanies} companies represented &bull; {companiesWithMultiple} with multiple attendees
+        </p>
+      </div>
 
-      {/* Main content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Page header */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-semibold text-[var(--color-text-primary)]">
-            Companies
-          </h1>
-          <p className="text-sm text-[var(--color-text-tertiary)] mt-1">
-            {totalCompanies} companies represented &bull; {companiesWithMultiple} with multiple attendees
-          </p>
-        </div>
-
-        {/* Companies list */}
-        <div className="space-y-4">
-          {companies.map((company) => (
-            <CompanyCard key={company.name} company={company} />
-          ))}
-          {companies.length === 0 && (
-            <div className="kith-card p-12 text-center text-[var(--color-text-muted)]">
-              No company data found
-            </div>
-          )}
-        </div>
-
-        {/* Footer */}
-        <footer className="mt-12 pt-6 border-t border-[var(--color-border)]">
-          <p className="text-xs text-[var(--color-text-muted)] text-center">
-            Part of Kith AI Lab
-          </p>
-        </footer>
-      </main>
-    </div>
+      {/* Companies list */}
+      <div className="space-y-4">
+        {companies.map((company) => (
+          <CompanyCard key={company.name} company={company} />
+        ))}
+        {companies.length === 0 && (
+          <div className="kith-card p-12 text-center text-[var(--color-text-muted)]">
+            No company data found
+          </div>
+        )}
+      </div>
+    </>
   )
 }
 

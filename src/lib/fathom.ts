@@ -1,17 +1,23 @@
 /**
- * Fathom API client for interview recording ingestion.
- * Handles fetching meetings, verifying webhooks, and mapping data to the interviews table.
+ * Fathom API client for interview recording backfill.
+ *
+ * Used by the /api/fathom/backfill endpoint to fetch all meetings from Fathom
+ * and upsert them into the interviews table.
+ *
+ * NOTE: Real-time webhook processing is handled by Supabase Edge Functions
+ * (fathom-webhook, calendly-webhook, stripe-kith-climate-webhook) which
+ * access secrets via Deno.env.get() from Supabase Edge Function Secrets.
  *
  * API Docs: https://api.fathom.ai/external/v1
  * Auth: X-Api-Key header (user-level, accesses recordings by key owner)
  */
 
 import { supabase } from './supabase'
-import { getSecret, getSecrets } from './secrets'
+import { getSecrets } from './secrets'
 
 const FATHOM_BASE_URL = 'https://api.fathom.ai/external/v1'
 
-// Interviewer email-to-name mapping (extensible for Diego later)
+// Interviewer email-to-name mapping
 const INTERVIEWER_MAP: Record<string, string> = {
   'benh@voiz.academy': 'Ben Hillier',
   'ben@kithailab.com': 'Ben Hillier',
@@ -94,14 +100,14 @@ export interface MappedInterviewData {
 // --- API Key Management ---
 
 /** All configured Fathom API accounts with their associated email. */
-export interface FathomAccount {
+interface FathomAccount {
   apiKey: string
   email: string
   name: string
 }
 
-async function getApiKeys(): Promise<FathomAccount[]> {
-  const secrets = await getSecrets(['FATHOM_API_KEY', 'FATHOM_API_KEY_DIEGO'])
+function getApiKeys(): FathomAccount[] {
+  const secrets = getSecrets(['FATHOM_API_KEY', 'FATHOM_API_KEY_DIEGO'])
   const accounts: FathomAccount[] = []
 
   if (secrets.FATHOM_API_KEY) {
@@ -113,22 +119,17 @@ async function getApiKeys(): Promise<FathomAccount[]> {
   }
 
   if (accounts.length === 0) {
-    throw new Error('No Fathom API keys found in app_secrets')
+    throw new Error('No Fathom API keys found in environment variables')
   }
 
   return accounts
 }
 
-/** Get the default (Ben's) API key for backward compatibility. */
-async function getApiKey(): Promise<string> {
-  const key = await getSecret('FATHOM_API_KEY')
-  if (!key) throw new Error('FATHOM_API_KEY not found in app_secrets')
-  return key
-}
-
 // --- API Functions ---
 
 async function fathomFetch<T>(path: string, params?: Record<string, string>, apiKey?: string): Promise<T> {
+  if (!apiKey) throw new Error('apiKey is required for fathomFetch')
+
   const url = new URL(`${FATHOM_BASE_URL}${path}`)
   if (params) {
     Object.entries(params).forEach(([key, value]) => {
@@ -136,10 +137,9 @@ async function fathomFetch<T>(path: string, params?: Record<string, string>, api
     })
   }
 
-  const resolvedKey = apiKey || await getApiKey()
   const response = await fetch(url.toString(), {
     headers: {
-      'X-Api-Key': resolvedKey,
+      'X-Api-Key': apiKey,
       'Accept': 'application/json',
     },
   })
@@ -153,61 +153,11 @@ async function fathomFetch<T>(path: string, params?: Record<string, string>, api
 }
 
 /**
- * Fetch a single meeting by recording ID with transcript and summary.
- * Optionally pass an apiKey to search a specific account; otherwise uses default.
- */
-export async function fetchMeeting(recordingId: number, apiKey?: string): Promise<FathomMeeting> {
-  const response = await fathomFetch<FathomMeetingsResponse>('/meetings', {
-    'include_transcript': 'true',
-    'include_summary': 'true',
-  }, apiKey)
-
-  let meeting = response.items.find(m => m.recording_id === recordingId)
-  let cursor = response.next_cursor
-
-  while (!meeting && cursor) {
-    const nextPage = await fathomFetch<FathomMeetingsResponse>('/meetings', {
-      'include_transcript': 'true',
-      'include_summary': 'true',
-      'cursor': cursor,
-    }, apiKey)
-    meeting = nextPage.items.find(m => m.recording_id === recordingId)
-    cursor = nextPage.next_cursor
-  }
-
-  if (!meeting) {
-    throw new Error(`Meeting with recording_id ${recordingId} not found`)
-  }
-
-  return meeting
-}
-
-/**
- * Fetch a single meeting by recording ID, trying all configured Fathom accounts.
- * Returns the meeting from whichever account owns it.
- */
-export async function fetchMeetingFromAnyAccount(recordingId: number): Promise<FathomMeeting> {
-  const accounts = await getApiKeys()
-
-  for (const account of accounts) {
-    try {
-      return await fetchMeeting(recordingId, account.apiKey)
-    } catch {
-      // Meeting not found on this account, try next
-      continue
-    }
-  }
-
-  throw new Error(`Meeting with recording_id ${recordingId} not found on any Fathom account`)
-}
-
-/**
  * Fetch all meetings for a given recorder email, paginating through all results.
- * Optionally pass an apiKey to query a specific account.
  */
-export async function fetchAllMeetings(
+async function fetchAllMeetings(
   recorderEmail: string,
-  options?: { includeTranscript?: boolean; includeSummary?: boolean; apiKey?: string }
+  options: { includeTranscript?: boolean; includeSummary?: boolean; apiKey: string }
 ): Promise<FathomMeeting[]> {
   const allMeetings: FathomMeeting[] = []
   let cursor: string | null = null
@@ -215,12 +165,12 @@ export async function fetchAllMeetings(
   do {
     const params: Record<string, string> = {
       'recorded_by[]': recorderEmail,
-      'include_transcript': String(options?.includeTranscript ?? true),
-      'include_summary': String(options?.includeSummary ?? true),
+      'include_transcript': String(options.includeTranscript ?? true),
+      'include_summary': String(options.includeSummary ?? true),
     }
     if (cursor) params['cursor'] = cursor
 
-    const response = await fathomFetch<FathomMeetingsResponse>('/meetings', params, options?.apiKey)
+    const response = await fathomFetch<FathomMeetingsResponse>('/meetings', params, options.apiKey)
     allMeetings.push(...response.items)
     cursor = response.next_cursor
   } while (cursor)
@@ -235,7 +185,7 @@ export async function fetchAllMeetings(
 export async function fetchAllMeetingsFromAllAccounts(
   options?: { includeTranscript?: boolean; includeSummary?: boolean }
 ): Promise<FathomMeeting[]> {
-  const accounts = await getApiKeys()
+  const accounts = getApiKeys()
   const allMeetings: FathomMeeting[] = []
 
   for (const account of accounts) {
@@ -251,35 +201,7 @@ export async function fetchAllMeetingsFromAllAccounts(
   return allMeetings
 }
 
-/**
- * Verify Fathom webhook signature (HMAC-SHA256).
- */
-export async function verifyWebhookSignature(
-  payload: string,
-  signature: string,
-  secret: string
-): Promise<boolean> {
-  // Fathom uses HMAC-SHA256 with the webhook secret
-  const encoder = new TextEncoder()
-  const key = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign']
-  )
-
-  const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(payload))
-  const computed = Buffer.from(sig).toString('hex')
-
-  // Compare signatures (timing-safe comparison)
-  if (computed.length !== signature.length) return false
-  let mismatch = 0
-  for (let i = 0; i < computed.length; i++) {
-    mismatch |= computed.charCodeAt(i) ^ signature.charCodeAt(i)
-  }
-  return mismatch === 0
-}
+// --- Data Mapping ---
 
 /**
  * Format Fathom transcript entries into a readable string with speaker attribution.
@@ -343,6 +265,8 @@ export function extractInterviewData(meeting: FathomMeeting): MappedInterviewDat
     activity_type: 'demo',
   }
 }
+
+// --- Database Operations ---
 
 /**
  * Find a customer by email in kith_climate.customers.

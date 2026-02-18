@@ -1,10 +1,19 @@
 'use client'
 
 import { useState } from 'react'
-import { Customer, FunnelStatus, FUNNEL_LABELS, FUNNEL_STAGES, SIDE_STATUSES } from '@/lib/supabase'
+import {
+  Customer, CohortApplication, Interview, Email, Payment,
+  FunnelStatus, FUNNEL_LABELS, SIDE_STATUSES,
+} from '@/lib/supabase'
 
 interface FunnelStageDetailProps {
   customers: Customer[]
+  stages: FunnelStatus[]
+  applicationsByCustomer: Record<string, CohortApplication>
+  interviewsByCustomer: Record<string, Interview>
+  interviewInvitesByCustomer: Record<string, Email>
+  enrolInvitesByCustomer: Record<string, Email>
+  paymentsByCustomer: Record<string, Payment>
 }
 
 const leadTypeColors: Record<string, string> = {
@@ -14,22 +23,45 @@ const leadTypeColors: Record<string, string> = {
 }
 
 const stageColors: Record<string, string> = {
-  registered: 'bg-[rgba(91,154,139,0.15)] text-[#5B9A8B] border-[rgba(91,154,139,0.3)]',
   applied: 'bg-[rgba(82,144,127,0.15)] text-[#52907F] border-[rgba(82,144,127,0.3)]',
   invited_to_interview: 'bg-[rgba(73,133,115,0.15)] text-[#498573] border-[rgba(73,133,115,0.3)]',
   booked: 'bg-[rgba(64,122,103,0.15)] text-[#407A67] border-[rgba(64,122,103,0.3)]',
   interviewed: 'bg-[rgba(55,111,91,0.15)] text-[#376F5B] border-[rgba(55,111,91,0.3)]',
   invited_to_enrol: 'bg-[rgba(46,100,79,0.15)] text-[#2E644F] border-[rgba(46,100,79,0.3)]',
   enrolled: 'bg-[rgba(37,89,67,0.15)] text-[#255943] border-[rgba(37,89,67,0.3)]',
+  application_rejected: 'bg-[rgba(239,68,68,0.15)] text-[#EF4444] border-[rgba(239,68,68,0.3)]',
+  interview_rejected: 'bg-[rgba(239,68,68,0.15)] text-[#EF4444] border-[rgba(239,68,68,0.3)]',
   no_show: 'bg-[rgba(217,119,6,0.15)] text-[#D97706] border-[rgba(217,119,6,0.3)]',
   offer_expired: 'bg-[rgba(232,230,227,0.05)] text-[rgba(232,230,227,0.5)] border-[rgba(232,230,227,0.1)]',
   not_invited: 'bg-[rgba(232,230,227,0.05)] text-[rgba(232,230,227,0.5)] border-[rgba(232,230,227,0.1)]',
 }
 
-export function FunnelStageDetail({ customers }: FunnelStageDetailProps) {
+function formatDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return '-'
+  const d = new Date(dateStr)
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+function formatCurrency(cents: number, currency: string): string {
+  return new Intl.NumberFormat('en-GB', {
+    style: 'currency',
+    currency: currency.toUpperCase(),
+    minimumFractionDigits: 0,
+  }).format(cents / 100)
+}
+
+export function FunnelStageDetail({
+  customers,
+  stages,
+  applicationsByCustomer,
+  interviewsByCustomer,
+  interviewInvitesByCustomer,
+  enrolInvitesByCustomer,
+  paymentsByCustomer,
+}: FunnelStageDetailProps) {
   const [selectedStage, setSelectedStage] = useState<FunnelStatus>('applied')
 
-  const allStages = [...FUNNEL_STAGES, ...SIDE_STATUSES]
+  const allStages = [...stages, ...SIDE_STATUSES]
   const stageCounts = new Map<FunnelStatus, number>()
   allStages.forEach(s => stageCounts.set(s, 0))
   customers.forEach(c => {
@@ -52,7 +84,7 @@ export function FunnelStageDetail({ customers }: FunnelStageDetailProps) {
                 onClick={() => setSelectedStage(stage)}
                 className={`px-3 py-1.5 rounded text-sm whitespace-nowrap transition-colors border ${
                   isActive
-                    ? `${stageColors[stage]} font-medium`
+                    ? `${stageColors[stage] || ''} font-medium`
                     : 'text-[var(--color-text-secondary)] border-transparent hover:bg-[var(--color-surface)] hover:text-[var(--color-text-primary)]'
                 }`}
               >
@@ -71,9 +103,7 @@ export function FunnelStageDetail({ customers }: FunnelStageDetailProps) {
               <th className="px-6 py-3 text-left kith-label">Name</th>
               <th className="px-6 py-3 text-left kith-label">Email</th>
               <th className="px-6 py-3 text-left kith-label">Type</th>
-              <th className="px-6 py-3 text-left kith-label">Company</th>
-              <th className="px-6 py-3 text-left kith-label">Title</th>
-              <th className="px-6 py-3 text-left kith-label">LinkedIn</th>
+              {renderStageHeaders(selectedStage)}
             </tr>
           </thead>
           <tbody>
@@ -93,31 +123,20 @@ export function FunnelStageDetail({ customers }: FunnelStageDetailProps) {
                     {customer.lead_type}
                   </span>
                 </td>
-                <td className="px-6 py-3 whitespace-nowrap text-sm text-[var(--color-text-secondary)]">
-                  {customer.linkedin_company || customer.company_domain || '-'}
-                </td>
-                <td className="px-6 py-3 text-sm text-[var(--color-text-secondary)] max-w-xs truncate">
-                  {customer.linkedin_title || '-'}
-                </td>
-                <td className="px-6 py-3 whitespace-nowrap">
-                  {customer.linkedin_url ? (
-                    <a
-                      href={customer.linkedin_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-[#5B9A8B] hover:text-[#6FB3A2] transition-colors"
-                    >
-                      View →
-                    </a>
-                  ) : (
-                    <span className="text-sm text-[var(--color-text-muted)]">-</span>
-                  )}
-                </td>
+                {renderStageCells(
+                  selectedStage,
+                  customer,
+                  applicationsByCustomer,
+                  interviewsByCustomer,
+                  interviewInvitesByCustomer,
+                  enrolInvitesByCustomer,
+                  paymentsByCustomer,
+                )}
               </tr>
             ))}
             {filteredCustomers.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-6 py-12 text-center text-[var(--color-text-muted)]">
+                <td colSpan={10} className="px-6 py-12 text-center text-[var(--color-text-muted)]">
                   No customers at this stage
                 </td>
               </tr>
@@ -127,4 +146,169 @@ export function FunnelStageDetail({ customers }: FunnelStageDetailProps) {
       </div>
     </div>
   )
+}
+
+/** Render extra column headers based on selected stage */
+function renderStageHeaders(stage: FunnelStatus) {
+  switch (stage) {
+    case 'applied':
+      return (
+        <>
+          <th className="px-6 py-3 text-left kith-label">Applied On</th>
+          <th className="px-6 py-3 text-left kith-label">Role</th>
+          <th className="px-6 py-3 text-left kith-label">UTM Source</th>
+        </>
+      )
+    case 'invited_to_interview':
+      return (
+        <>
+          <th className="px-6 py-3 text-left kith-label">Invite Sent</th>
+          <th className="px-6 py-3 text-left kith-label">Company</th>
+        </>
+      )
+    case 'interviewed':
+      return (
+        <>
+          <th className="px-6 py-3 text-left kith-label">Interviewed On</th>
+          <th className="px-6 py-3 text-left kith-label">Outcome</th>
+          <th className="px-6 py-3 text-left kith-label">Interviewer</th>
+        </>
+      )
+    case 'invited_to_enrol':
+      return (
+        <>
+          <th className="px-6 py-3 text-left kith-label">Invite Sent</th>
+          <th className="px-6 py-3 text-left kith-label">Company</th>
+        </>
+      )
+    case 'enrolled':
+      return (
+        <>
+          <th className="px-6 py-3 text-left kith-label">Paid On</th>
+          <th className="px-6 py-3 text-left kith-label">Amount</th>
+          <th className="px-6 py-3 text-left kith-label">Product</th>
+        </>
+      )
+    default:
+      // Side statuses: show company + title as generic columns
+      return (
+        <>
+          <th className="px-6 py-3 text-left kith-label">Company</th>
+          <th className="px-6 py-3 text-left kith-label">Title</th>
+        </>
+      )
+  }
+}
+
+const outcomeColors: Record<string, string> = {
+  approved: 'bg-[rgba(34,197,94,0.15)] text-[#22C55E]',
+  rejected: 'bg-[rgba(239,68,68,0.15)] text-[#EF4444]',
+  waitlisted: 'bg-[rgba(234,179,8,0.15)] text-[#EAB308]',
+  pending: 'bg-[rgba(232,230,227,0.08)] text-[rgba(232,230,227,0.5)]',
+}
+
+/** Render extra cell data based on selected stage */
+function renderStageCells(
+  stage: FunnelStatus,
+  customer: Customer,
+  applicationsByCustomer: Record<string, CohortApplication>,
+  interviewsByCustomer: Record<string, Interview>,
+  interviewInvitesByCustomer: Record<string, Email>,
+  enrolInvitesByCustomer: Record<string, Email>,
+  paymentsByCustomer: Record<string, Payment>,
+) {
+  switch (stage) {
+    case 'applied': {
+      const app = applicationsByCustomer[customer.id]
+      return (
+        <>
+          <td className="px-6 py-3 whitespace-nowrap text-sm text-[var(--color-text-secondary)]">
+            {formatDate(app?.created_at)}
+          </td>
+          <td className="px-6 py-3 text-sm text-[var(--color-text-secondary)] max-w-[200px] truncate">
+            {app?.role || '-'}
+          </td>
+          <td className="px-6 py-3 whitespace-nowrap text-sm text-[var(--color-text-muted)]">
+            {app?.utm_source || 'Direct'}
+          </td>
+        </>
+      )
+    }
+    case 'invited_to_interview': {
+      const invite = interviewInvitesByCustomer[customer.id]
+      return (
+        <>
+          <td className="px-6 py-3 whitespace-nowrap text-sm text-[var(--color-text-secondary)]">
+            {formatDate(invite?.sent_at)}
+          </td>
+          <td className="px-6 py-3 text-sm text-[var(--color-text-secondary)] max-w-[200px] truncate">
+            {customer.linkedin_company || customer.company_domain || '-'}
+          </td>
+        </>
+      )
+    }
+    case 'interviewed': {
+      const interview = interviewsByCustomer[customer.id]
+      return (
+        <>
+          <td className="px-6 py-3 whitespace-nowrap text-sm text-[var(--color-text-secondary)]">
+            {formatDate(interview?.conducted_at || interview?.created_at)}
+          </td>
+          <td className="px-6 py-3 whitespace-nowrap">
+            {interview?.outcome ? (
+              <span className={`px-2 py-1 text-xs font-medium rounded ${outcomeColors[interview.outcome] || ''}`}>
+                {interview.outcome}
+              </span>
+            ) : (
+              <span className="text-sm text-[var(--color-text-muted)]">-</span>
+            )}
+          </td>
+          <td className="px-6 py-3 whitespace-nowrap text-sm text-[var(--color-text-secondary)]">
+            {interview?.interviewer || '-'}
+          </td>
+        </>
+      )
+    }
+    case 'invited_to_enrol': {
+      const invite = enrolInvitesByCustomer[customer.id]
+      return (
+        <>
+          <td className="px-6 py-3 whitespace-nowrap text-sm text-[var(--color-text-secondary)]">
+            {formatDate(invite?.sent_at)}
+          </td>
+          <td className="px-6 py-3 text-sm text-[var(--color-text-secondary)] max-w-[200px] truncate">
+            {customer.linkedin_company || customer.company_domain || '-'}
+          </td>
+        </>
+      )
+    }
+    case 'enrolled': {
+      const payment = paymentsByCustomer[customer.id]
+      return (
+        <>
+          <td className="px-6 py-3 whitespace-nowrap text-sm text-[var(--color-text-secondary)]">
+            {formatDate(payment?.paid_at)}
+          </td>
+          <td className="px-6 py-3 whitespace-nowrap text-sm text-[var(--color-text-primary)] font-medium">
+            {payment ? formatCurrency(payment.amount_cents, payment.currency) : '-'}
+          </td>
+          <td className="px-6 py-3 whitespace-nowrap text-sm text-[var(--color-text-secondary)]">
+            {payment?.product || '-'}
+          </td>
+        </>
+      )
+    }
+    default:
+      // Side statuses — show company + title
+      return (
+        <>
+          <td className="px-6 py-3 text-sm text-[var(--color-text-secondary)] max-w-[200px] truncate">
+            {customer.linkedin_company || customer.company_domain || '-'}
+          </td>
+          <td className="px-6 py-3 text-sm text-[var(--color-text-secondary)] max-w-[200px] truncate">
+            {customer.linkedin_title || '-'}
+          </td>
+        </>
+      )
+  }
 }

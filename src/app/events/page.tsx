@@ -1,5 +1,4 @@
 import { fetchAll, Customer, WorkshopRegistration, getEventLabel, getEventShortLabel, personalDomains } from '@/lib/supabase'
-import { Header } from '@/components/Header'
 import { EventComparisonChart } from '@/components/EventComparisonChart'
 
 type EventStats = {
@@ -136,143 +135,131 @@ export default async function EventComparisonPage() {
   }))
 
   return (
-    <div className="min-h-screen">
-      <Header />
+    <>
+      <div className="mb-8">
+        <h1 className="text-2xl font-semibold text-[var(--color-text-primary)]">
+          Event Comparison
+        </h1>
+        <p className="text-sm text-[var(--color-text-tertiary)] mt-1">
+          Audience composition and growth across {events.length} workshops
+        </p>
+      </div>
 
-      {/* Main content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-2xl font-semibold text-[var(--color-text-primary)]">
-            Event Comparison
-          </h1>
-          <p className="text-sm text-[var(--color-text-tertiary)] mt-1">
-            Audience composition and growth across {events.length} workshops
-          </p>
-        </div>
+      {/* Stacked comparison chart */}
+      <div className="mb-8">
+        <EventComparisonChart data={chartData} />
+      </div>
 
-        {/* Stacked comparison chart */}
-        <div className="mb-8">
-          <EventComparisonChart data={chartData} />
-        </div>
-
-        {/* Event cards grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {events.map((event) => (
-            <div key={event.date} className="kith-card p-6">
-              {/* Event header */}
-              <div className="mb-4">
-                <h3 className="text-base font-semibold text-[var(--color-text-primary)]">
-                  {event.label}
-                </h3>
-                <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-                  {event.eventName}
-                </p>
-              </div>
-
-              {/* Key metrics */}
-              <div className="grid grid-cols-3 gap-4 mb-5">
-                <div>
-                  <div className="text-2xl font-semibold text-[var(--color-text-primary)]">
-                    {event.registered}
-                  </div>
-                  <div className="text-xs text-[var(--color-text-muted)]">Registered</div>
-                </div>
-                <div>
-                  <div className="text-2xl font-semibold text-[#5B9A8B]">
-                    {event.attended}
-                  </div>
-                  <div className="text-xs text-[var(--color-text-muted)]">Attended</div>
-                </div>
-                <div>
-                  <div className="text-2xl font-semibold text-[var(--color-text-primary)]">
-                    {event.attendanceRate}%
-                  </div>
-                  <div className="text-xs text-[var(--color-text-muted)]">Show rate</div>
-                </div>
-              </div>
-
-              {/* Audience mix bar */}
-              <div className="mb-5">
-                <div className="flex justify-between text-xs text-[var(--color-text-muted)] mb-1.5">
-                  <span>Audience Mix</span>
-                  <span>{event.profRate}% professional</span>
-                </div>
-                <div className="flex h-3 rounded-full overflow-hidden bg-[var(--color-surface)]">
-                  {event.professionals > 0 && (
-                    <div
-                      className="bg-[#5B9A8B] transition-all"
-                      style={{ width: `${event.profRate}%` }}
-                    />
-                  )}
-                  {event.pivoters > 0 && (
-                    <div
-                      className="bg-[#6B8DD6] transition-all"
-                      style={{ width: `${event.pivRate}%` }}
-                    />
-                  )}
-                  {event.unknown > 0 && (
-                    <div
-                      className="bg-[rgba(232,230,227,0.1)] transition-all"
-                      style={{ width: `${100 - event.profRate - event.pivRate}%` }}
-                    />
-                  )}
-                </div>
-                <div className="flex gap-4 mt-1.5 text-xs">
-                  <span className="text-[#5B9A8B]">{event.professionals} prof</span>
-                  <span className="text-[#6B8DD6]">{event.pivoters} pivot</span>
-                  <span className="text-[var(--color-text-muted)]">{event.unknown} unknown</span>
-                </div>
-              </div>
-
-              {/* New vs returning + corporate */}
-              <div className="grid grid-cols-3 gap-4 mb-5 pt-4 border-t border-[var(--color-border-subtle)]">
-                <div>
-                  <div className="text-lg font-semibold text-[var(--color-text-primary)]">
-                    {event.newLeads}
-                  </div>
-                  <div className="text-xs text-[var(--color-text-muted)]">New leads</div>
-                </div>
-                <div>
-                  <div className="text-lg font-semibold text-[var(--color-text-secondary)]">
-                    {event.returningLeads}
-                  </div>
-                  <div className="text-xs text-[var(--color-text-muted)]">Returning</div>
-                </div>
-                <div>
-                  <div className="text-lg font-semibold text-[var(--color-text-secondary)]">
-                    {event.corporateEmails}
-                  </div>
-                  <div className="text-xs text-[var(--color-text-muted)]">Corporate</div>
-                </div>
-              </div>
-
-              {/* Top companies */}
-              {event.topCompanies.length > 0 && (
-                <div className="pt-4 border-t border-[var(--color-border-subtle)]">
-                  <div className="text-xs text-[var(--color-text-muted)] mb-2">Top Companies</div>
-                  <div className="flex flex-wrap gap-2">
-                    {event.topCompanies.map((c) => (
-                      <span
-                        key={c.name}
-                        className="px-2 py-1 text-xs rounded bg-[var(--color-surface)] text-[var(--color-text-secondary)]"
-                      >
-                        {c.name} ({c.count})
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
+      {/* Event cards grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {events.map((event) => (
+          <div key={event.date} className="kith-card p-6">
+            {/* Event header */}
+            <div className="mb-4">
+              <h3 className="text-base font-semibold text-[var(--color-text-primary)]">
+                {event.label}
+              </h3>
+              <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                {event.eventName}
+              </p>
             </div>
-          ))}
-        </div>
 
-        {/* Footer */}
-        <footer className="mt-12 pt-6 border-t border-[var(--color-border)]">
-          <p className="text-xs text-[var(--color-text-muted)] text-center">
-            Part of Kith AI Lab
-          </p>
-        </footer>
-      </main>
-    </div>
+            {/* Key metrics */}
+            <div className="grid grid-cols-3 gap-4 mb-5">
+              <div>
+                <div className="text-2xl font-semibold text-[var(--color-text-primary)]">
+                  {event.registered}
+                </div>
+                <div className="text-xs text-[var(--color-text-muted)]">Registered</div>
+              </div>
+              <div>
+                <div className="text-2xl font-semibold text-[#5B9A8B]">
+                  {event.attended}
+                </div>
+                <div className="text-xs text-[var(--color-text-muted)]">Attended</div>
+              </div>
+              <div>
+                <div className="text-2xl font-semibold text-[var(--color-text-primary)]">
+                  {event.attendanceRate}%
+                </div>
+                <div className="text-xs text-[var(--color-text-muted)]">Show rate</div>
+              </div>
+            </div>
+
+            {/* Audience mix bar */}
+            <div className="mb-5">
+              <div className="flex justify-between text-xs text-[var(--color-text-muted)] mb-1.5">
+                <span>Audience Mix</span>
+                <span>{event.profRate}% professional</span>
+              </div>
+              <div className="flex h-3 rounded-full overflow-hidden bg-[var(--color-surface)]">
+                {event.professionals > 0 && (
+                  <div
+                    className="bg-[#5B9A8B] transition-all"
+                    style={{ width: `${event.profRate}%` }}
+                  />
+                )}
+                {event.pivoters > 0 && (
+                  <div
+                    className="bg-[#6B8DD6] transition-all"
+                    style={{ width: `${event.pivRate}%` }}
+                  />
+                )}
+                {event.unknown > 0 && (
+                  <div
+                    className="bg-[rgba(232,230,227,0.1)] transition-all"
+                    style={{ width: `${100 - event.profRate - event.pivRate}%` }}
+                  />
+                )}
+              </div>
+              <div className="flex gap-4 mt-1.5 text-xs">
+                <span className="text-[#5B9A8B]">{event.professionals} prof</span>
+                <span className="text-[#6B8DD6]">{event.pivoters} pivot</span>
+                <span className="text-[var(--color-text-muted)]">{event.unknown} unknown</span>
+              </div>
+            </div>
+
+            {/* New vs returning + corporate */}
+            <div className="grid grid-cols-3 gap-4 mb-5 pt-4 border-t border-[var(--color-border-subtle)]">
+              <div>
+                <div className="text-lg font-semibold text-[var(--color-text-primary)]">
+                  {event.newLeads}
+                </div>
+                <div className="text-xs text-[var(--color-text-muted)]">New leads</div>
+              </div>
+              <div>
+                <div className="text-lg font-semibold text-[var(--color-text-secondary)]">
+                  {event.returningLeads}
+                </div>
+                <div className="text-xs text-[var(--color-text-muted)]">Returning</div>
+              </div>
+              <div>
+                <div className="text-lg font-semibold text-[var(--color-text-secondary)]">
+                  {event.corporateEmails}
+                </div>
+                <div className="text-xs text-[var(--color-text-muted)]">Corporate</div>
+              </div>
+            </div>
+
+            {/* Top companies */}
+            {event.topCompanies.length > 0 && (
+              <div className="pt-4 border-t border-[var(--color-border-subtle)]">
+                <div className="text-xs text-[var(--color-text-muted)] mb-2">Top Companies</div>
+                <div className="flex flex-wrap gap-2">
+                  {event.topCompanies.map((c) => (
+                    <span
+                      key={c.name}
+                      className="px-2 py-1 text-xs rounded bg-[var(--color-surface)] text-[var(--color-text-secondary)]"
+                    >
+                      {c.name} ({c.count})
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </>
   )
 }

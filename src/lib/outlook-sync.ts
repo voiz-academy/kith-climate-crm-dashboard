@@ -123,11 +123,13 @@ export async function syncInterviewInvites(
 
         result.matched++
         await advanceCustomer(linkedCustomer, 'invited_to_interview', result, recipientEmail)
+        await upsertEmail(email, linkedCustomer.id, 'invite_to_interview')
         continue
       }
 
       result.matched++
       await advanceCustomer(customer, 'invited_to_interview', result, recipientEmail)
+      await upsertEmail(email, customer.id, 'invite_to_interview')
     } catch (err) {
       result.errors.push(`${recipientEmail}: ${String(err)}`)
     }
@@ -161,7 +163,7 @@ export async function syncEnrollmentInvites(
     }
   }
 
-  for (const [recipientEmail] of emailMap) {
+  for (const [recipientEmail, email] of emailMap) {
     try {
       const { data: customer, error: custErr } = await supabase
         .from('customers')
@@ -177,12 +179,55 @@ export async function syncEnrollmentInvites(
 
       result.matched++
       await advanceCustomer(customer, 'invited_to_enrol', result, recipientEmail)
+      await upsertEmail(email, customer.id, 'invite_to_enrol')
     } catch (err) {
       result.errors.push(`${recipientEmail}: ${String(err)}`)
     }
   }
 
   return result
+}
+
+/**
+ * Persist an email record into the emails table for audit / history.
+ * Deduplicates on (customer_id, sent_at, subject).
+ * Errors are logged but never thrown — email persistence must not block funnel advancement.
+ */
+async function upsertEmail(email: EmailMatch, customerId: string, emailType: string) {
+  if (!customerId) return
+
+  try {
+    const row = {
+      customer_id: customerId,
+      direction: 'outbound' as const,
+      from_address: email.sender,
+      to_addresses: [email.recipientEmail],
+      subject: email.subject,
+      email_type: emailType,
+      sent_at: email.sentAt,
+      cohort: 'march-2026',
+      updated_at: new Date().toISOString(),
+    }
+
+    // Deduplicate by customer_id + sent_at + subject
+    const { data: existing } = await supabase
+      .from('emails')
+      .select('id')
+      .eq('customer_id', customerId)
+      .eq('sent_at', email.sentAt)
+      .eq('subject', email.subject)
+      .limit(1)
+      .single()
+
+    if (existing) {
+      await supabase.from('emails').update(row).eq('id', existing.id)
+    } else {
+      await supabase.from('emails').insert(row)
+    }
+  } catch (err) {
+    // Log but do not throw — email persistence is best-effort
+    console.error(`Failed to upsert email for ${customerId}:`, err)
+  }
 }
 
 /**

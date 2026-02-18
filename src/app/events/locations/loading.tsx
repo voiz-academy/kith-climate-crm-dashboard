@@ -1,6 +1,6 @@
 export default function Loading() {
   return (
-    <div className="min-h-screen bg-[var(--color-bg)] flex items-center justify-center">
+    <div className="flex items-center justify-center py-24">
       <div className="text-[var(--color-text-secondary)]">Loading locations...</div>
     </div>
   )

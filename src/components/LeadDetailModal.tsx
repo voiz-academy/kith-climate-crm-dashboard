@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect } from 'react'
-import { LeadWithAttendance } from '@/lib/supabase'
+import { useEffect, useState } from 'react'
+import { LeadWithAttendance, Email } from '@/lib/supabase'
 
 interface LeadDetailModalProps {
   lead: LeadWithAttendance
@@ -22,7 +22,19 @@ function formatDate(dateStr: string): string {
   })
 }
 
+function formatEmailDate(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+}
+
 export function LeadDetailModal({ lead, onClose }: LeadDetailModalProps) {
+  const [emails, setEmails] = useState<Email[]>([])
+  const [emailsLoading, setEmailsLoading] = useState(true)
+
   // Close on Escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -39,6 +51,25 @@ export function LeadDetailModal({ lead, onClose }: LeadDetailModalProps) {
       document.body.style.overflow = ''
     }
   }, [])
+
+  // Fetch emails for this customer
+  useEffect(() => {
+    async function fetchEmails() {
+      setEmailsLoading(true)
+      try {
+        const res = await fetch(`/api/emails?customer_id=${lead.id}`)
+        if (res.ok) {
+          const data = await res.json()
+          setEmails(data)
+        }
+      } catch (err) {
+        console.error('Failed to fetch emails:', err)
+      } finally {
+        setEmailsLoading(false)
+      }
+    }
+    fetchEmails()
+  }, [lead.id])
 
   return (
     <div
@@ -128,6 +159,24 @@ export function LeadDetailModal({ lead, onClose }: LeadDetailModalProps) {
             )}
           </div>
 
+          {/* Email History */}
+          <div>
+            <h3 className="text-sm font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-3">
+              Email History
+            </h3>
+            {emailsLoading ? (
+              <p className="text-sm text-[var(--color-text-muted)]">Loading emails...</p>
+            ) : emails.length === 0 ? (
+              <p className="text-sm text-[var(--color-text-muted)]">No email history</p>
+            ) : (
+              <div className="space-y-2">
+                {emails.map((email) => (
+                  <EmailRow key={email.id} email={email} />
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Climate Signals (if available) */}
           {lead.climate_signals && Object.keys(lead.climate_signals).length > 0 && (
             <div>
@@ -151,6 +200,54 @@ export function LeadDetailModal({ lead, onClose }: LeadDetailModalProps) {
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+function EmailRow({ email }: { email: Email }) {
+  const isInbound = email.direction === 'inbound'
+
+  return (
+    <div
+      className={`flex items-start gap-3 p-3 rounded border border-[var(--color-border)] bg-[var(--color-surface)] ${
+        isInbound ? '' : 'border-l-2 border-l-[#5B9A8B]'
+      }`}
+    >
+      {/* Direction indicator */}
+      <span
+        className={`mt-0.5 text-sm font-mono shrink-0 ${
+          isInbound
+            ? 'text-[var(--color-text-muted)]'
+            : 'text-[#5B9A8B]'
+        }`}
+        title={isInbound ? 'Inbound' : 'Outbound'}
+      >
+        {isInbound ? '\u2190' : '\u2192'}
+      </span>
+
+      {/* Email content */}
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-sm text-[var(--color-text-primary)] truncate font-medium">
+            {email.subject || '(no subject)'}
+          </span>
+          {email.email_type && (
+            <span className="px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider rounded bg-[rgba(91,154,139,0.1)] text-[#5B9A8B] shrink-0">
+              {email.email_type}
+            </span>
+          )}
+        </div>
+        <p className="text-xs text-[var(--color-text-muted)] mt-0.5 truncate">
+          {isInbound
+            ? `From: ${email.from_address}`
+            : `To: ${email.to_addresses.join(', ')}`}
+        </p>
+      </div>
+
+      {/* Date */}
+      <span className="text-xs text-[var(--color-text-muted)] whitespace-nowrap shrink-0">
+        {formatEmailDate(email.sent_at)}
+      </span>
     </div>
   )
 }

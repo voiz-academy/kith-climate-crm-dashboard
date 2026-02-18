@@ -151,6 +151,8 @@ export type InterviewBooking = {
   calendly_event_uri: string | null
   calendly_invitee_uri: string | null
   scheduled_at: string
+  interviewee_name: string | null
+  interviewee_email: string | null
   interviewer_name: string | null
   interviewer_email: string | null
   event_type: string | null
@@ -188,6 +190,7 @@ export type Interview = {
 export type Payment = {
   id: string
   customer_id: string
+  enrollee_customer_id: string | null
   stripe_payment_intent_id: string | null
   stripe_checkout_session_id: string | null
   stripe_customer_id: string | null
@@ -201,6 +204,38 @@ export type Payment = {
   metadata: Record<string, unknown> | null
   created_at: string
   updated_at: string
+}
+
+export type Email = {
+  id: string
+  customer_id: string
+  message_id: string | null
+  direction: 'inbound' | 'outbound'
+  from_address: string
+  to_addresses: string[]
+  cc_addresses: string[] | null
+  subject: string | null
+  body_preview: string | null
+  email_type: string | null
+  sent_at: string
+  has_attachments: boolean
+  importance: string
+  conversation_id: string | null
+  cohort: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type PageView = {
+  id: string
+  created_at: string
+  page_path: string
+  page_title: string | null
+  referrer: string | null
+  user_agent: string | null
+  utm_source: string | null
+  utm_medium: string | null
+  utm_campaign: string | null
 }
 
 // Event name/label mapping

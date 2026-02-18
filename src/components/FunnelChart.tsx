@@ -9,10 +9,8 @@ interface FunnelChartProps {
 }
 
 const STAGE_COLORS: Record<string, string> = {
-  registered: '#5B9A8B',
   applied: '#52907F',
   invited_to_interview: '#498573',
-  booked: '#407A67',
   interviewed: '#376F5B',
   invited_to_enrol: '#2E644F',
   enrolled: '#255943',
