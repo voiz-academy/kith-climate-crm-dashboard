@@ -32,6 +32,7 @@ export async function middleware(request: NextRequest) {
     "/api/fathom/webhook",
     "/api/fathom/backfill",
     "/api/outlook/sync",
+    "/api/debug",  // Temporary: remove after diagnosing data issue
   ]
   if (publicPaths.some((p) => pathname.startsWith(p))) {
     return authResponse
