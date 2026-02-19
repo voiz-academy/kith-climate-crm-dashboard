@@ -79,6 +79,36 @@ export const FUNNEL_LABELS: Record<FunnelStatus, string> = {
   not_invited: 'Not Invited',
 }
 
+// Cohort tracking types
+export type CohortStatusEntry = {
+  status: FunnelStatus
+  updated_at: string
+}
+
+export type CohortStatuses = Record<string, CohortStatusEntry>
+
+export const COHORT_OPTIONS = [
+  { value: 'all', label: 'All Cohorts' },
+  { value: 'March 16th 2026', label: 'March 16th 2026' },
+  // Future cohorts added here
+] as const
+
+export type CohortFilter = typeof COHORT_OPTIONS[number]['value']
+
+/**
+ * Get a customer's funnel status for a specific cohort.
+ * Returns the cohort-specific status, or falls back to global funnel_status
+ * when cohort is 'all' or not found.
+ */
+export function getCustomerCohortStatus(
+  customer: Customer,
+  cohort: CohortFilter
+): FunnelStatus {
+  if (cohort === 'all') return customer.funnel_status
+  const entry = customer.cohort_statuses?.[cohort]
+  return (entry?.status as FunnelStatus) ?? 'registered'
+}
+
 // Central customer hub type
 export type EnrichmentStatus = 'pending' | 'enriching' | 'enriched' | 'failed' | 'skipped'
 
@@ -100,6 +130,7 @@ export type Customer = {
   linkedin_location: string | null
   climate_signals: Record<string, unknown> | null
   enrollment_deadline: string | null
+  cohort_statuses: CohortStatuses | null
   created_at: string
   updated_at: string
 }
@@ -236,6 +267,43 @@ export type PageView = {
   utm_source: string | null
   utm_medium: string | null
   utm_campaign: string | null
+}
+
+export type PendingFunnelChange = {
+  id: string
+  customer_id: string
+  current_status: string
+  proposed_status: string
+  trigger_type: string
+  trigger_detail: {
+    subject?: string
+    sender?: string
+    recipient?: string
+    sent_at?: string
+    [key: string]: unknown
+  } | null
+  email_id: string | null
+  cohort: string | null
+  status: 'pending' | 'approved' | 'rejected'
+  reviewed_at: string | null
+  reviewed_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+// Funnel rank system — used for advancement checks (prevents backsliding)
+export const FUNNEL_RANK: Record<string, number> = {
+  registered: 1,
+  applied: 2,
+  application_rejected: 2,
+  invited_to_interview: 3,
+  booked: 4,
+  interviewed: 5,
+  no_show: 5,
+  interview_rejected: 5,
+  invited_to_enrol: 6,
+  offer_expired: 6,
+  enrolled: 7,
 }
 
 // Event name/label mapping

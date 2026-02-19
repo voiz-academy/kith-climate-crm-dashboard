@@ -1,19 +1,25 @@
 /**
  * Outlook Email Sync — matching logic for interview & enrollment invites.
  *
+ * Emails are stored immediately. Funnel changes are queued as pending
+ * in `pending_funnel_changes` for manual approval via the Funnel page UI.
+ *
  * Interview invites:
  *   Subject: "Interview Invite: Kith Climate"
  *   From: ben@kithailab.com
- *   Recipients → matched against cohort_applications.email → advance to invited_to_interview
+ *   Recipients → matched against cohort_applications.email → propose invited_to_interview
  *
  * Enrollment invites:
  *   Subjects: "Kith Climate: Cohort Invitation", "Cohort Acceptance",
  *             "Cohort Enrollment", "Kith Climate Enrollment"
  *   From: ben@kithailab.com OR diego@kithailab.com
- *   Recipients → matched against customers.email → advance to invited_to_enrol
+ *   Recipients → matched against customers.email → propose invited_to_enrol
  */
 
-import { supabase } from './supabase'
+import { supabase, FUNNEL_RANK, COHORT_OPTIONS } from './supabase'
+
+/** The currently active cohort — used as default when email has no cohort */
+const CURRENT_COHORT = COHORT_OPTIONS[1].value // 'March 16th 2026'
 
 export type EmailMatch = {
   recipientEmail: string
@@ -22,57 +28,42 @@ export type EmailMatch = {
   sender: string
 }
 
+type SyncCategoryResult = {
+  total_emails: number
+  matched: number
+  pending_changes: number
+  already_at_or_past: number
+  duplicate_pending: number
+  no_customer_found: number
+  errors: string[]
+  details: Array<{ email: string; action: string }>
+}
+
 export type SyncResult = {
-  interview_invites: {
-    total_emails: number
-    matched: number
-    advanced: number
-    already_at_or_past: number
-    no_customer_found: number
-    errors: string[]
-    details: Array<{ email: string; action: string }>
-  }
-  enrollment_invites: {
-    total_emails: number
-    matched: number
-    advanced: number
-    already_at_or_past: number
-    no_customer_found: number
-    errors: string[]
-    details: Array<{ email: string; action: string }>
-  }
+  interview_invites: SyncCategoryResult
+  enrollment_invites: SyncCategoryResult
 }
 
-// Ranks for comparison — must match DB funnel_rank function
-const FUNNEL_RANK: Record<string, number> = {
-  registered: 1,
-  applied: 2,
-  application_rejected: 2,
-  invited_to_interview: 3,
-  booked: 4,
-  interviewed: 5,
-  no_show: 5,
-  interview_rejected: 5,
-  invited_to_enrol: 6,
-  offer_expired: 6,
-  enrolled: 7,
-}
-
-/**
- * Process interview invite emails — advance matching customers to invited_to_interview.
- */
-export async function syncInterviewInvites(
-  emails: EmailMatch[]
-): Promise<SyncResult['interview_invites']> {
-  const result: SyncResult['interview_invites'] = {
-    total_emails: emails.length,
+function emptyCategoryResult(totalEmails: number): SyncCategoryResult {
+  return {
+    total_emails: totalEmails,
     matched: 0,
-    advanced: 0,
+    pending_changes: 0,
     already_at_or_past: 0,
+    duplicate_pending: 0,
     no_customer_found: 0,
     errors: [],
     details: [],
   }
+}
+
+/**
+ * Process interview invite emails — store emails and queue pending funnel changes.
+ */
+export async function syncInterviewInvites(
+  emails: EmailMatch[]
+): Promise<SyncCategoryResult> {
+  const result = emptyCategoryResult(emails.length)
 
   // Deduplicate by recipient email (keep earliest send date)
   const emailMap = new Map<string, EmailMatch>()
@@ -122,14 +113,14 @@ export async function syncInterviewInvites(
         }
 
         result.matched++
-        await advanceCustomer(linkedCustomer, 'invited_to_interview', result, recipientEmail)
-        await upsertEmail(email, linkedCustomer.id, 'invite_to_interview')
+        const emailId = await upsertEmail(email, linkedCustomer.id, 'invite_to_interview')
+        await createPendingChange(linkedCustomer, 'invited_to_interview', result, recipientEmail, email, emailId)
         continue
       }
 
       result.matched++
-      await advanceCustomer(customer, 'invited_to_interview', result, recipientEmail)
-      await upsertEmail(email, customer.id, 'invite_to_interview')
+      const emailId = await upsertEmail(email, customer.id, 'invite_to_interview')
+      await createPendingChange(customer, 'invited_to_interview', result, recipientEmail, email, emailId)
     } catch (err) {
       result.errors.push(`${recipientEmail}: ${String(err)}`)
     }
@@ -139,20 +130,12 @@ export async function syncInterviewInvites(
 }
 
 /**
- * Process enrollment invite emails — advance matching customers to invited_to_enrol.
+ * Process enrollment invite emails — store emails and queue pending funnel changes.
  */
 export async function syncEnrollmentInvites(
   emails: EmailMatch[]
-): Promise<SyncResult['enrollment_invites']> {
-  const result: SyncResult['enrollment_invites'] = {
-    total_emails: emails.length,
-    matched: 0,
-    advanced: 0,
-    already_at_or_past: 0,
-    no_customer_found: 0,
-    errors: [],
-    details: [],
-  }
+): Promise<SyncCategoryResult> {
+  const result = emptyCategoryResult(emails.length)
 
   // Deduplicate by recipient email
   const emailMap = new Map<string, EmailMatch>()
@@ -178,8 +161,8 @@ export async function syncEnrollmentInvites(
       }
 
       result.matched++
-      await advanceCustomer(customer, 'invited_to_enrol', result, recipientEmail)
-      await upsertEmail(email, customer.id, 'invite_to_enrol')
+      const emailId = await upsertEmail(email, customer.id, 'invite_to_enrol')
+      await createPendingChange(customer, 'invited_to_enrol', result, recipientEmail, email, emailId)
     } catch (err) {
       result.errors.push(`${recipientEmail}: ${String(err)}`)
     }
@@ -191,10 +174,15 @@ export async function syncEnrollmentInvites(
 /**
  * Persist an email record into the emails table for audit / history.
  * Deduplicates on (customer_id, sent_at, subject).
- * Errors are logged but never thrown — email persistence must not block funnel advancement.
+ * Returns the email row id if successful, null otherwise.
+ * Errors are logged but never thrown — email persistence must not block pending change creation.
  */
-async function upsertEmail(email: EmailMatch, customerId: string, emailType: string) {
-  if (!customerId) return
+async function upsertEmail(
+  email: EmailMatch,
+  customerId: string,
+  emailType: string
+): Promise<string | null> {
+  if (!customerId) return null
 
   try {
     const row = {
@@ -205,7 +193,7 @@ async function upsertEmail(email: EmailMatch, customerId: string, emailType: str
       subject: email.subject,
       email_type: emailType,
       sent_at: email.sentAt,
-      cohort: 'march-2026',
+      cohort: CURRENT_COHORT,
       updated_at: new Date().toISOString(),
     }
 
@@ -221,23 +209,34 @@ async function upsertEmail(email: EmailMatch, customerId: string, emailType: str
 
     if (existing) {
       await supabase.from('emails').update(row).eq('id', existing.id)
+      return existing.id
     } else {
-      await supabase.from('emails').insert(row)
+      const { data: inserted } = await supabase
+        .from('emails')
+        .insert(row)
+        .select('id')
+        .single()
+      return inserted?.id ?? null
     }
   } catch (err) {
     // Log but do not throw — email persistence is best-effort
     console.error(`Failed to upsert email for ${customerId}:`, err)
+    return null
   }
 }
 
 /**
- * Advance a customer's funnel_status if the target status is higher rank.
+ * Queue a pending funnel change instead of auto-advancing.
+ * Skips if the customer is already at or past the target rank,
+ * or if an identical pending change already exists.
  */
-async function advanceCustomer(
+async function createPendingChange(
   customer: { id: string; email: string; funnel_status: string },
   targetStatus: string,
-  result: { advanced: number; already_at_or_past: number; details: Array<{ email: string; action: string }> },
-  recipientEmail: string
+  result: SyncCategoryResult,
+  recipientEmail: string,
+  email: EmailMatch,
+  emailId: string | null
 ) {
   const currentRank = FUNNEL_RANK[customer.funnel_status] ?? 0
   const targetRank = FUNNEL_RANK[targetStatus] ?? 0
@@ -251,21 +250,49 @@ async function advanceCustomer(
     return
   }
 
-  const { error } = await supabase
-    .from('customers')
-    .update({
-      funnel_status: targetStatus,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', customer.id)
+  // Check for duplicate pending change (same customer + same proposed status)
+  const { data: existingPending } = await supabase
+    .from('pending_funnel_changes')
+    .select('id')
+    .eq('customer_id', customer.id)
+    .eq('proposed_status', targetStatus)
+    .eq('status', 'pending')
+    .limit(1)
+    .single()
 
-  if (error) {
-    throw new Error(`Failed to advance ${recipientEmail}: ${error.message}`)
+  if (existingPending) {
+    result.duplicate_pending++
+    result.details.push({
+      email: recipientEmail,
+      action: `duplicate_pending: ${customer.funnel_status} → ${targetStatus} already queued`,
+    })
+    return
   }
 
-  result.advanced++
+  const { error } = await supabase
+    .from('pending_funnel_changes')
+    .insert({
+      customer_id: customer.id,
+      current_status: customer.funnel_status,
+      proposed_status: targetStatus,
+      trigger_type: 'email_sync',
+      trigger_detail: {
+        subject: email.subject,
+        sender: email.sender,
+        recipient: email.recipientEmail,
+        sent_at: email.sentAt,
+      },
+      email_id: emailId,
+      cohort: CURRENT_COHORT,
+    })
+
+  if (error) {
+    throw new Error(`Failed to create pending change for ${recipientEmail}: ${error.message}`)
+  }
+
+  result.pending_changes++
   result.details.push({
     email: recipientEmail,
-    action: `advanced: ${customer.funnel_status} → ${targetStatus}`,
+    action: `pending: ${customer.funnel_status} → ${targetStatus}`,
   })
 }

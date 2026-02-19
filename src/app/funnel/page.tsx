@@ -1,12 +1,14 @@
 import {
-  fetchAll, Customer, CohortApplication, Interview, Email, Payment,
-  FUNNEL_LABELS, SIDE_STATUSES,
-  type FunnelStatus
+  fetchAll, getSupabase, Customer, CohortApplication, Interview, Email, Payment,
+  FUNNEL_LABELS, SIDE_STATUSES, getCustomerCohortStatus,
+  type FunnelStatus, type CohortFilter
 } from '@/lib/supabase'
 import { Header } from '@/components/Header'
 import { StatCard } from '@/components/StatCard'
 import { FunnelChart } from '@/components/FunnelChart'
 import { FunnelStageDetail } from '@/components/FunnelStageDetail'
+import { PendingChangesButton } from '@/components/PendingChangesButton'
+import { CohortSelector } from '@/components/CohortSelector'
 
 /** The 5 funnel stages we display (no 'registered') */
 const ACTIVE_FUNNEL_STAGES: FunnelStatus[] = [
@@ -25,20 +27,71 @@ async function getFunnelData() {
     fetchAll<Email>('emails'),
     fetchAll<Payment>('payments'),
   ])
-  return { customers, applications, interviews, emails, payments }
+
+  // Count pending funnel changes (head-only query for efficiency)
+  let pendingCount = 0
+  try {
+    const { count, error } = await getSupabase()
+      .from('pending_funnel_changes')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'pending')
+    if (!error && count !== null) pendingCount = count
+  } catch {
+    // Non-critical — if count fails, button just won't show
+  }
+
+  return { customers, applications, interviews, emails, payments, pendingCount }
 }
 
 export const dynamic = 'force-dynamic'
 
-export default async function FunnelPage() {
-  const { customers, applications, interviews, emails, payments } = await getFunnelData()
+type PageProps = {
+  searchParams: Promise<{ cohort?: string }>
+}
+
+export default async function FunnelPage({ searchParams }: PageProps) {
+  const params = await searchParams
+  const selectedCohort = (params.cohort ?? 'all') as CohortFilter
+  const isFiltered = selectedCohort !== 'all'
+
+  const { customers, applications, interviews, emails, payments, pendingCount } = await getFunnelData()
+
+  // When a specific cohort is selected, map customers to their cohort-specific status.
+  // Customers without a cohort_statuses entry for this cohort are excluded (they
+  // aren't part of this cohort). When 'all', use funnel_status as-is.
+  let effectiveCustomers: Customer[]
+
+  if (isFiltered) {
+    effectiveCustomers = customers
+      .filter(c => c.cohort_statuses?.[selectedCohort] != null)
+      .map(c => ({
+        ...c,
+        funnel_status: getCustomerCohortStatus(c, selectedCohort),
+      }))
+  } else {
+    effectiveCustomers = customers
+  }
 
   // Filter out 'registered' customers — only show those who have progressed
-  const activeCustomers = customers.filter(c => c.funnel_status !== 'registered')
+  const activeCustomers = effectiveCustomers.filter(c => c.funnel_status !== 'registered')
+
+  // Filter child data by cohort when a specific cohort is selected
+  const filteredApplications = isFiltered
+    ? applications.filter(a => a.cohort === selectedCohort)
+    : applications
+  const filteredInterviews = isFiltered
+    ? interviews.filter(i => i.cohort === selectedCohort)
+    : interviews
+  const filteredEmails = isFiltered
+    ? emails.filter(e => e.cohort === selectedCohort)
+    : emails
+  const filteredPayments = isFiltered
+    ? payments.filter(p => p.cohort === selectedCohort)
+    : payments
 
   // Build lookup maps by customer_id for enrichment
   const applicationsByCustomer = new Map<string, CohortApplication>()
-  applications.forEach(a => {
+  filteredApplications.forEach(a => {
     if (!a.customer_id) return
     // Keep the latest application per customer
     const existing = applicationsByCustomer.get(a.customer_id)
@@ -48,7 +101,7 @@ export default async function FunnelPage() {
   })
 
   const interviewsByCustomer = new Map<string, Interview>()
-  interviews.forEach(i => {
+  filteredInterviews.forEach(i => {
     const existing = interviewsByCustomer.get(i.customer_id)
     if (!existing || i.created_at > existing.created_at) {
       interviewsByCustomer.set(i.customer_id, i)
@@ -57,7 +110,7 @@ export default async function FunnelPage() {
 
   // Invite-to-interview emails (outbound, email_type = 'invite_to_interview')
   const interviewInvitesByCustomer = new Map<string, Email>()
-  emails
+  filteredEmails
     .filter(e => e.email_type === 'invite_to_interview' && e.direction === 'outbound')
     .forEach(e => {
       const existing = interviewInvitesByCustomer.get(e.customer_id)
@@ -68,7 +121,7 @@ export default async function FunnelPage() {
 
   // Invite-to-enrol emails (outbound, email_type = 'invite_to_enrol')
   const enrolInvitesByCustomer = new Map<string, Email>()
-  emails
+  filteredEmails
     .filter(e => e.email_type === 'invite_to_enrol' && e.direction === 'outbound')
     .forEach(e => {
       const existing = enrolInvitesByCustomer.get(e.customer_id)
@@ -78,7 +131,7 @@ export default async function FunnelPage() {
     })
 
   const paymentsByCustomer = new Map<string, Payment>()
-  payments
+  filteredPayments
     .filter(p => p.status === 'succeeded')
     .forEach(p => {
       const custId = p.enrollee_customer_id || p.customer_id
@@ -104,7 +157,7 @@ export default async function FunnelPage() {
     (stageCounts.get('enrolled') || 0)
 
   // Application overlap stat
-  const applicantsWithWorkshops = applications.filter(a => {
+  const applicantsWithWorkshops = filteredApplications.filter(a => {
     const customer = customers.find(c => c.id === a.customer_id)
     return customer && customer.lead_type !== 'unknown'
   }).length
@@ -125,7 +178,7 @@ export default async function FunnelPage() {
 
   // UTM breakdown from applications
   const utmSources = new Map<string, number>()
-  applications.forEach(a => {
+  filteredApplications.forEach(a => {
     const source = a.utm_source || 'Direct'
     utmSources.set(source, (utmSources.get(source) || 0) + 1)
   })
@@ -139,13 +192,21 @@ export default async function FunnelPage() {
 
       {/* Main content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-2xl font-semibold text-[var(--color-text-primary)]">
-            Customer Funnel
-          </h1>
-          <p className="text-sm text-[var(--color-text-tertiary)] mt-1">
-            Track customers through the Kith Climate enrolment pipeline
-          </p>
+        <div className="mb-8 flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold text-[var(--color-text-primary)]">
+              Customer Funnel
+            </h1>
+            <p className="text-sm text-[var(--color-text-tertiary)] mt-1">
+              Track customers through the Kith Climate enrolment pipeline
+            </p>
+            <div className="mt-3">
+              <CohortSelector />
+            </div>
+          </div>
+          {pendingCount > 0 && (
+            <PendingChangesButton count={pendingCount} />
+          )}
         </div>
 
         {/* Summary stat cards */}
@@ -158,7 +219,7 @@ export default async function FunnelPage() {
           <StatCard
             title="Applicants"
             value={totalApplicants}
-            subtitle={`${applications.length} total applications`}
+            subtitle={`${filteredApplications.length} total applications`}
             accent
           />
           <StatCard
@@ -182,14 +243,14 @@ export default async function FunnelPage() {
         </div>
 
         {/* Application insights */}
-        {applications.length > 0 && (
+        {filteredApplications.length > 0 && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
             {/* UTM sources */}
             <div className="kith-card p-6">
               <h3 className="kith-label mb-4">Application Sources</h3>
               <div className="space-y-3">
                 {topSources.map(([source, count]) => {
-                  const pct = Math.round((count / applications.length) * 100)
+                  const pct = Math.round((count / filteredApplications.length) * 100)
                   return (
                     <div key={source}>
                       <div className="flex justify-between text-sm mb-1">

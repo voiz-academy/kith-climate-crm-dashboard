@@ -1,9 +1,10 @@
 /**
  * Outlook Email Sync Endpoint
  *
- * Accepts pre-fetched email data and advances customer funnel statuses:
- * - Interview invite emails → advance to invited_to_interview
- * - Enrollment invite emails → advance to invited_to_enrol
+ * Accepts pre-fetched email data, stores emails immediately, and queues
+ * pending funnel changes for manual approval:
+ * - Interview invite emails → pending change to invited_to_interview
+ * - Enrollment invite emails → pending change to invited_to_enrol
  *
  * POST /api/outlook/sync
  * Body: {
@@ -44,12 +45,14 @@ export async function POST(request: NextRequest) {
     console.log('Outlook sync complete:', JSON.stringify({
       interview: {
         total: result.interview_invites.total_emails,
-        advanced: result.interview_invites.advanced,
+        pending_changes: result.interview_invites.pending_changes,
+        already_at_or_past: result.interview_invites.already_at_or_past,
         errors: result.interview_invites.errors.length,
       },
       enrollment: {
         total: result.enrollment_invites.total_emails,
-        advanced: result.enrollment_invites.advanced,
+        pending_changes: result.enrollment_invites.pending_changes,
+        already_at_or_past: result.enrollment_invites.already_at_or_past,
         errors: result.enrollment_invites.errors.length,
       },
     }))
