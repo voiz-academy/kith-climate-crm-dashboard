@@ -269,6 +269,20 @@ export type PageView = {
   utm_campaign: string | null
 }
 
+export type SystemLog = {
+  id: string
+  function_name: string
+  function_type: 'api_route' | 'edge_function'
+  http_method: string | null
+  status: 'success' | 'error'
+  status_code: number | null
+  error_message: string | null
+  duration_ms: number | null
+  metadata: Record<string, unknown>
+  invoked_at: string
+  created_at: string
+}
+
 export type PendingFunnelChange = {
   id: string
   customer_id: string

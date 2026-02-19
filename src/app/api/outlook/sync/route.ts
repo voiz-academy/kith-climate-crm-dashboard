@@ -3,8 +3,8 @@
  *
  * Accepts pre-fetched email data, stores emails immediately, and queues
  * pending funnel changes for manual approval:
- * - Interview invite emails → pending change to invited_to_interview
- * - Enrollment invite emails → pending change to invited_to_enrol
+ * - Interview invite emails -> pending change to invited_to_interview
+ * - Enrollment invite emails -> pending change to invited_to_enrol
  *
  * POST /api/outlook/sync
  * Body: {
@@ -13,56 +13,60 @@
  * }
  */
 
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import {
   syncInterviewInvites,
   syncEnrollmentInvites,
   type EmailMatch,
   type SyncResult,
 } from '@/lib/outlook-sync'
+import { withLogging } from '@/lib/log-invocation'
 
 export const dynamic = 'force-dynamic'
 
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json()
+export const POST = withLogging(
+  { functionName: 'api/outlook/sync', httpMethod: 'POST' },
+  async (request: Request) => {
+    try {
+      const body = await request.json()
 
-    const interviewEmails: EmailMatch[] = body.interview_invites ?? []
-    const enrollmentEmails: EmailMatch[] = body.enrollment_invites ?? []
+      const interviewEmails: EmailMatch[] = body.interview_invites ?? []
+      const enrollmentEmails: EmailMatch[] = body.enrollment_invites ?? []
 
-    if (interviewEmails.length === 0 && enrollmentEmails.length === 0) {
+      if (interviewEmails.length === 0 && enrollmentEmails.length === 0) {
+        return NextResponse.json(
+          { error: 'No email data provided. Send interview_invites and/or enrollment_invites arrays.' },
+          { status: 400 }
+        )
+      }
+
+      const result: SyncResult = {
+        interview_invites: await syncInterviewInvites(interviewEmails),
+        enrollment_invites: await syncEnrollmentInvites(enrollmentEmails),
+      }
+
+      console.log('Outlook sync complete:', JSON.stringify({
+        interview: {
+          total: result.interview_invites.total_emails,
+          pending_changes: result.interview_invites.pending_changes,
+          already_at_or_past: result.interview_invites.already_at_or_past,
+          errors: result.interview_invites.errors.length,
+        },
+        enrollment: {
+          total: result.enrollment_invites.total_emails,
+          pending_changes: result.enrollment_invites.pending_changes,
+          already_at_or_past: result.enrollment_invites.already_at_or_past,
+          errors: result.enrollment_invites.errors.length,
+        },
+      }))
+
+      return NextResponse.json(result)
+    } catch (error) {
+      console.error('Outlook sync error:', error)
       return NextResponse.json(
-        { error: 'No email data provided. Send interview_invites and/or enrollment_invites arrays.' },
-        { status: 400 }
+        { error: 'Sync failed', details: String(error) },
+        { status: 500 }
       )
     }
-
-    const result: SyncResult = {
-      interview_invites: await syncInterviewInvites(interviewEmails),
-      enrollment_invites: await syncEnrollmentInvites(enrollmentEmails),
-    }
-
-    console.log('Outlook sync complete:', JSON.stringify({
-      interview: {
-        total: result.interview_invites.total_emails,
-        pending_changes: result.interview_invites.pending_changes,
-        already_at_or_past: result.interview_invites.already_at_or_past,
-        errors: result.interview_invites.errors.length,
-      },
-      enrollment: {
-        total: result.enrollment_invites.total_emails,
-        pending_changes: result.enrollment_invites.pending_changes,
-        already_at_or_past: result.enrollment_invites.already_at_or_past,
-        errors: result.enrollment_invites.errors.length,
-      },
-    }))
-
-    return NextResponse.json(result)
-  } catch (error) {
-    console.error('Outlook sync error:', error)
-    return NextResponse.json(
-      { error: 'Sync failed', details: String(error) },
-      { status: 500 }
-    )
   }
-}
+)

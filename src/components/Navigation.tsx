@@ -8,6 +8,7 @@ const navItems = [
   { href: '/funnel', label: 'Funnel' },
   { href: '/events', label: 'Events' },
   { href: '/traffic', label: 'Traffic' },
+  { href: '/status', label: 'Status' },
 ]
 
 export function Navigation() {

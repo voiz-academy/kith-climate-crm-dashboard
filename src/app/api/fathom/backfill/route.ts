@@ -18,102 +18,106 @@ import {
   upsertInterview,
   type FathomMeeting,
 } from '@/lib/fathom'
+import { withLogging } from '@/lib/log-invocation'
 
 export const dynamic = 'force-dynamic'
 
-export async function POST() {
-  try {
-    // 1. Fetch all existing interviews to match against
-    const { data: existingInterviews, error: fetchError } = await supabase
-      .from('interviews')
-      .select('id, fathom_recording_url, fathom_recording_id, interviewee_email')
+export const POST = withLogging(
+  { functionName: 'api/fathom/backfill', httpMethod: 'POST' },
+  async () => {
+    try {
+      // 1. Fetch all existing interviews to match against
+      const { data: existingInterviews, error: fetchError } = await supabase
+        .from('interviews')
+        .select('id, fathom_recording_url, fathom_recording_id, interviewee_email')
 
-    if (fetchError) throw fetchError
+      if (fetchError) throw fetchError
 
-    // Build lookup maps
-    const urlToInterviewId = new Map<string, string>()
-    const recordingIdSet = new Set<number>()
+      // Build lookup maps
+      const urlToInterviewId = new Map<string, string>()
+      const recordingIdSet = new Set<number>()
 
-    existingInterviews?.forEach(interview => {
-      if (interview.fathom_recording_url) {
-        urlToInterviewId.set(interview.fathom_recording_url, interview.id)
+      existingInterviews?.forEach(interview => {
+        if (interview.fathom_recording_url) {
+          urlToInterviewId.set(interview.fathom_recording_url, interview.id)
+        }
+        if (interview.fathom_recording_id) {
+          recordingIdSet.add(interview.fathom_recording_id)
+        }
+      })
+
+      // 2. Fetch all meetings from all Fathom accounts (Ben + Diego)
+      console.log('Backfill: Fetching meetings from all Fathom accounts...')
+      const meetings = await fetchAllMeetingsFromAllAccounts({
+        includeTranscript: true,
+        includeSummary: true,
+      })
+      console.log(`Backfill: Found ${meetings.length} total meetings across all accounts`)
+
+      // 3. Process each meeting
+      const results = {
+        total: meetings.length,
+        matched_by_url: 0,
+        matched_by_recording_id: 0,
+        created_new: 0,
+        skipped_no_customer: 0,
+        skipped_already_processed: 0,
+        errors: [] as string[],
       }
-      if (interview.fathom_recording_id) {
-        recordingIdSet.add(interview.fathom_recording_id)
+
+      for (const meeting of meetings) {
+        try {
+          const interviewData = extractInterviewData(meeting)
+
+          // Skip if already processed by recording_id
+          if (recordingIdSet.has(meeting.recording_id)) {
+            // Still update transcript/summary if missing
+            await updateExistingByRecordingId(meeting)
+            results.matched_by_recording_id++
+            continue
+          }
+
+          // Try to match by share_url against existing fathom_recording_url
+          const matchedId = urlToInterviewId.get(meeting.share_url)
+          if (matchedId) {
+            await updateExistingInterview(matchedId, meeting)
+            results.matched_by_url++
+            recordingIdSet.add(meeting.recording_id) // Prevent double processing
+            continue
+          }
+
+          // No existing match — try to find customer and create new row
+          let customerId: string | null = null
+          if (interviewData.interviewee_email) {
+            customerId = await findCustomerByEmail(interviewData.interviewee_email)
+          }
+
+          if (!customerId && !interviewData.interviewee_email) {
+            results.skipped_no_customer++
+            continue
+          }
+
+          const result = await upsertInterview(interviewData, customerId)
+          if (result.action === 'created') {
+            results.created_new++
+          }
+          recordingIdSet.add(meeting.recording_id)
+        } catch (err) {
+          results.errors.push(`Recording ${meeting.recording_id}: ${String(err)}`)
+        }
       }
-    })
 
-    // 2. Fetch all meetings from all Fathom accounts (Ben + Diego)
-    console.log('Backfill: Fetching meetings from all Fathom accounts...')
-    const meetings = await fetchAllMeetingsFromAllAccounts({
-      includeTranscript: true,
-      includeSummary: true,
-    })
-    console.log(`Backfill: Found ${meetings.length} total meetings across all accounts`)
-
-    // 3. Process each meeting
-    const results = {
-      total: meetings.length,
-      matched_by_url: 0,
-      matched_by_recording_id: 0,
-      created_new: 0,
-      skipped_no_customer: 0,
-      skipped_already_processed: 0,
-      errors: [] as string[],
+      console.log('Backfill complete:', results)
+      return NextResponse.json(results)
+    } catch (error) {
+      console.error('Fathom backfill error:', error)
+      return NextResponse.json(
+        { error: 'Backfill failed', details: String(error) },
+        { status: 500 }
+      )
     }
-
-    for (const meeting of meetings) {
-      try {
-        const interviewData = extractInterviewData(meeting)
-
-        // Skip if already processed by recording_id
-        if (recordingIdSet.has(meeting.recording_id)) {
-          // Still update transcript/summary if missing
-          await updateExistingByRecordingId(meeting)
-          results.matched_by_recording_id++
-          continue
-        }
-
-        // Try to match by share_url against existing fathom_recording_url
-        const matchedId = urlToInterviewId.get(meeting.share_url)
-        if (matchedId) {
-          await updateExistingInterview(matchedId, meeting)
-          results.matched_by_url++
-          recordingIdSet.add(meeting.recording_id) // Prevent double processing
-          continue
-        }
-
-        // No existing match — try to find customer and create new row
-        let customerId: string | null = null
-        if (interviewData.interviewee_email) {
-          customerId = await findCustomerByEmail(interviewData.interviewee_email)
-        }
-
-        if (!customerId && !interviewData.interviewee_email) {
-          results.skipped_no_customer++
-          continue
-        }
-
-        const result = await upsertInterview(interviewData, customerId)
-        if (result.action === 'created') {
-          results.created_new++
-        }
-        recordingIdSet.add(meeting.recording_id)
-      } catch (err) {
-        results.errors.push(`Recording ${meeting.recording_id}: ${String(err)}`)
-      }
-    }
-
-    console.log('Backfill complete:', results)
-    return NextResponse.json(results)
-  } catch (error) {
-    console.error('Fathom backfill error:', error)
-    return NextResponse.json(
-      { error: 'Backfill failed', details: String(error) },
-      { status: 500 }
-    )
   }
-}
+)
 
 /**
  * Update an existing interview row matched by fathom_recording_url.
