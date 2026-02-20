@@ -1,10 +1,11 @@
 /**
  * Fathom Backfill Endpoint
  *
- * Fetches all meetings from Fathom for Ben Hillier and:
- * 1. Matches existing interviews by fathom_recording_url (share_url)
+ * Fetches all meetings from all configured Fathom accounts and:
+ * 1. Matches existing interviews by fathom_recording_id or share_url
  * 2. Updates matched rows with transcript + summary + recording_id
- * 3. Creates new interview rows for unmatched meetings (if customer found)
+ * 3. Creates new interview rows for unmatched meetings — auto-creates
+ *    customers if needed and links to matching bookings
  *
  * POST /api/fathom/backfill
  */
@@ -14,7 +15,7 @@ import { supabase } from '@/lib/supabase'
 import {
   fetchAllMeetingsFromAllAccounts,
   extractInterviewData,
-  findCustomerByEmail,
+  resolveCustomerAndBooking,
   upsertInterview,
   type FathomMeeting,
 } from '@/lib/fathom'
@@ -60,7 +61,7 @@ export const POST = withLogging(
         matched_by_url: 0,
         matched_by_recording_id: 0,
         created_new: 0,
-        skipped_no_customer: 0,
+        skipped_no_email: 0,
         skipped_already_processed: 0,
         errors: [] as string[],
       }
@@ -86,18 +87,18 @@ export const POST = withLogging(
             continue
           }
 
-          // No existing match — try to find customer and create new row
-          let customerId: string | null = null
-          if (interviewData.interviewee_email) {
-            customerId = await findCustomerByEmail(interviewData.interviewee_email)
-          }
-
-          if (!customerId && !interviewData.interviewee_email) {
-            results.skipped_no_customer++
+          // No existing match — resolve customer (find or create) and link booking
+          if (!interviewData.interviewee_email) {
+            results.skipped_no_email++
             continue
           }
 
-          const result = await upsertInterview(interviewData, customerId)
+          const { customerId, bookingId } = await resolveCustomerAndBooking(
+            interviewData.interviewee_email,
+            interviewData.interviewee_name
+          )
+
+          const result = await upsertInterview(interviewData, customerId, undefined, bookingId)
           if (result.action === 'created') {
             results.created_new++
           }

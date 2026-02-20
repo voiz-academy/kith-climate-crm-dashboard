@@ -12,8 +12,9 @@
  * Auth: X-Api-Key header (user-level, accesses recordings by key owner)
  */
 
-import { supabase } from './supabase'
+import { supabase, getSupabase } from './supabase'
 import { getSecrets } from './secrets'
+import { findOrCreateCustomer } from './customer-sync'
 
 const FATHOM_BASE_URL = 'https://api.fathom.ai/external/v1'
 
@@ -271,6 +272,8 @@ export function extractInterviewData(meeting: FathomMeeting): MappedInterviewDat
 /**
  * Find a customer by email in kith_climate.customers.
  * Returns the customer ID if found, null otherwise.
+ *
+ * @deprecated Use findOrCreateCustomer() from customer-sync.ts instead.
  */
 export async function findCustomerByEmail(email: string): Promise<string | null> {
   const { data, error } = await supabase
@@ -285,18 +288,43 @@ export async function findCustomerByEmail(email: string): Promise<string | null>
 }
 
 /**
+ * Find or create a customer, then resolve a matching booking_id.
+ * Convenience wrapper for backfill operations.
+ */
+export async function resolveCustomerAndBooking(email: string, name?: string | null): Promise<{
+  customerId: string
+  bookingId: string | null
+}> {
+  const { customerId } = await findOrCreateCustomer(email, name)
+
+  // Try to find a matching booking
+  const { data: booking } = await getSupabase()
+    .from('interviews_booked')
+    .select('id')
+    .eq('interviewee_email', email.toLowerCase().trim())
+    .is('cancelled_at', null)
+    .order('scheduled_at', { ascending: false })
+    .limit(1)
+    .single()
+
+  return { customerId, bookingId: booking?.id ?? null }
+}
+
+/**
  * Upsert an interview record from Fathom meeting data.
  * Uses fathom_recording_id as the unique key for deduplication.
  */
 export async function upsertInterview(
   data: MappedInterviewData,
   customerId: string | null,
-  cohort?: string
+  cohort?: string,
+  bookingId?: string | null
 ) {
   const row = {
     customer_id: customerId,
     interviewee_name: data.interviewee_name,
     interviewee_email: data.interviewee_email,
+    booking_id: bookingId ?? null,
     fathom_recording_id: data.fathom_recording_id,
     fathom_recording_url: data.fathom_recording_url,
     fathom_summary: data.fathom_summary,

@@ -8,6 +8,7 @@ import { StatCard } from '@/components/StatCard'
 import { FunnelChart } from '@/components/FunnelChart'
 import { FunnelStageDetail } from '@/components/FunnelStageDetail'
 import { PendingChangesButton } from '@/components/PendingChangesButton'
+import { AddInterviewButton } from '@/components/AddInterviewButton'
 import { CohortSelector } from '@/components/CohortSelector'
 
 /** The 5 funnel stages we display (no 'registered') */
@@ -204,9 +205,12 @@ export default async function FunnelPage({ searchParams }: PageProps) {
               <CohortSelector />
             </div>
           </div>
-          {pendingCount > 0 && (
-            <PendingChangesButton count={pendingCount} />
-          )}
+          <div className="flex items-center gap-3">
+            <AddInterviewButton />
+            {pendingCount > 0 && (
+              <PendingChangesButton count={pendingCount} />
+            )}
+          </div>
         </div>
 
         {/* Summary stat cards */}
