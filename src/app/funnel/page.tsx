@@ -8,6 +8,7 @@ import { StatCard } from '@/components/StatCard'
 import { FunnelChart } from '@/components/FunnelChart'
 import { FunnelStageDetail } from '@/components/FunnelStageDetail'
 import { PendingChangesButton } from '@/components/PendingChangesButton'
+import { PendingInterviewsButton } from '@/components/PendingInterviewsButton'
 import { AddInterviewButton } from '@/components/AddInterviewButton'
 import { CohortSelector } from '@/components/CohortSelector'
 
@@ -41,7 +42,19 @@ async function getFunnelData() {
     // Non-critical — if count fails, button just won't show
   }
 
-  return { customers, applications, interviews, emails, payments, pendingCount }
+  // Count pending interview recordings awaiting review
+  let pendingInterviewsCount = 0
+  try {
+    const { count, error } = await getSupabase()
+      .from('pending_interviews')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'pending')
+    if (!error && count !== null) pendingInterviewsCount = count
+  } catch {
+    // Non-critical — if count fails, button just won't show
+  }
+
+  return { customers, applications, interviews, emails, payments, pendingCount, pendingInterviewsCount }
 }
 
 export const dynamic = 'force-dynamic'
@@ -55,7 +68,7 @@ export default async function FunnelPage({ searchParams }: PageProps) {
   const selectedCohort = (params.cohort ?? 'all') as CohortFilter
   const isFiltered = selectedCohort !== 'all'
 
-  const { customers, applications, interviews, emails, payments, pendingCount } = await getFunnelData()
+  const { customers, applications, interviews, emails, payments, pendingCount, pendingInterviewsCount } = await getFunnelData()
 
   // When a specific cohort is selected, map customers to their cohort-specific status.
   // Customers without a cohort_statuses entry for this cohort are excluded (they
@@ -207,6 +220,9 @@ export default async function FunnelPage({ searchParams }: PageProps) {
           </div>
           <div className="flex items-center gap-3">
             <AddInterviewButton />
+            {pendingInterviewsCount > 0 && (
+              <PendingInterviewsButton count={pendingInterviewsCount} />
+            )}
             {pendingCount > 0 && (
               <PendingChangesButton count={pendingCount} />
             )}
