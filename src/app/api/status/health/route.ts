@@ -3,7 +3,7 @@
  *
  * Checks external service health in parallel and returns their status.
  * - Supabase, Fathom, Auth0: direct API pings
- * - Calendly, Stripe: checked via system_logs (keys only in Supabase Edge Function Secrets)
+ * - Calendly, Stripe, Luma Referral: checked via system_logs (keys only in Supabase Edge Function Secrets)
  *
  * Used by the Status page ServiceHealthGrid for live monitoring.
  */
@@ -148,7 +148,10 @@ export async function GET() {
   // 4. Stripe Webhook — checked via system_logs (key only in Supabase Edge Function Secrets)
   checks.push(checkWebhookHealth('Stripe Webhook', 'stripe-kith-climate-webhook'))
 
-  // 5. Auth0 — direct ping (public endpoint, no key needed)
+  // 5. Luma Referral Webhook — checked via system_logs (Graph subscription → Edge Function)
+  checks.push(checkWebhookHealth('Luma Referral', 'luma-referral-webhook'))
+
+  // 6. Auth0 — direct ping (public endpoint, no key needed)
   const auth0Domain = getSecret('NEXT_PUBLIC_AUTH0_DOMAIN') || getSecret('AUTH0_DOMAIN')
   if (auth0Domain) {
     checks.push(
