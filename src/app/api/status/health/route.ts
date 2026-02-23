@@ -44,16 +44,23 @@ async function checkService(
  */
 async function checkWebhookHealth(
   serviceName: string,
-  functionName: string
+  functionName: string,
+  accountFilter?: string
 ): Promise<ServiceHealth> {
   const start = Date.now()
   try {
-    const { data: logs, error } = await getSupabase()
+    let query = getSupabase()
       .from('system_logs')
       .select('status, invoked_at, error_message')
       .eq('function_name', functionName)
       .order('invoked_at', { ascending: false })
       .limit(10)
+
+    if (accountFilter) {
+      query = query.contains('metadata', { account: accountFilter })
+    }
+
+    const { data: logs, error } = await query
 
     if (error) throw new Error(error.message)
 
@@ -126,32 +133,22 @@ export async function GET() {
     })
   )
 
-  // 2. Fathom API — direct ping (key available in Cloudflare Workers)
-  const fathomKey = getSecret('FATHOM_API_KEY')
-  if (fathomKey) {
-    checks.push(
-      checkService('Fathom', async () => {
-        const res = await fetch('https://api.fathom.video/external/v1/meetings?limit=1', {
-          headers: { Authorization: `Bearer ${fathomKey}` },
-          signal: AbortSignal.timeout(10000),
-        })
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      })
-    )
-  } else {
-    checks.push(Promise.resolve({ name: 'Fathom', status: 'not_configured' as const, latencyMs: 0 }))
-  }
+  // 2. Fathom Webhook (Ben) — checked via system_logs with account metadata
+  checks.push(checkWebhookHealth('Fathom (Ben)', 'fathom-webhook', 'ben'))
 
-  // 3. Calendly Webhook — checked via system_logs (key only in Supabase Edge Function Secrets)
+  // 3. Fathom Webhook (Diego) — checked via system_logs with account metadata
+  checks.push(checkWebhookHealth('Fathom (Diego)', 'fathom-webhook', 'diego'))
+
+  // 4. Calendly Webhook — checked via system_logs (key only in Supabase Edge Function Secrets)
   checks.push(checkWebhookHealth('Calendly Webhook', 'calendly-webhook'))
 
-  // 4. Stripe Webhook — checked via system_logs (key only in Supabase Edge Function Secrets)
+  // 5. Stripe Webhook — checked via system_logs (key only in Supabase Edge Function Secrets)
   checks.push(checkWebhookHealth('Stripe Webhook', 'stripe-kith-climate-webhook'))
 
-  // 5. Luma Referral Webhook — checked via system_logs (Graph subscription → Edge Function)
+  // 6. Luma Referral Webhook — checked via system_logs (Graph subscription → Edge Function)
   checks.push(checkWebhookHealth('Luma Referral', 'luma-referral-webhook'))
 
-  // 6. Auth0 — direct ping (public endpoint, no key needed)
+  // 7. Auth0 — direct ping (public endpoint, no key needed)
   const auth0Domain = getSecret('NEXT_PUBLIC_AUTH0_DOMAIN') || getSecret('AUTH0_DOMAIN')
   if (auth0Domain) {
     checks.push(

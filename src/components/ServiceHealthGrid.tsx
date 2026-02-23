@@ -51,8 +51,8 @@ export function ServiceHealthGrid() {
     return (
       <div className="kith-card p-6">
         <h3 className="kith-label mb-4">Service Health</h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-          {Array.from({ length: 5 }).map((_, i) => (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 7 }).map((_, i) => (
             <div key={i} className="rounded-lg border border-[var(--color-border-subtle)] p-4 animate-pulse">
               <div className="h-4 bg-[var(--color-surface)] rounded w-16 mb-3" />
               <div className="h-3 bg-[var(--color-surface)] rounded w-12" />
@@ -73,7 +73,7 @@ export function ServiceHealthGrid() {
           </span>
         )}
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {health?.services.map((svc) => {
           const cfg = statusConfig[svc.status]
           return (
