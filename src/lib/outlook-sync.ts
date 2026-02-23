@@ -1,5 +1,6 @@
 /**
- * Outlook Email Sync — matching logic for interview & enrollment invites.
+ * Outlook Email Sync — matching logic for interview invites, enrollment invites,
+ * and interview rejections.
  *
  * Emails are stored immediately. Funnel changes are queued as pending
  * in `pending_funnel_changes` for manual approval via the Funnel page UI.
@@ -14,6 +15,12 @@
  *             "Cohort Enrollment", "Kith Climate Enrollment"
  *   From: ben@kithailab.com OR diego@kithailab.com
  *   Recipients → matched against customers.email → propose invited_to_enrol
+ *
+ * Interview rejections:
+ *   Subjects: "Interview Feedback", "Kith Climate: Interview Feedback",
+ *             "Interview Update", "Kith Climate: Interview Update"
+ *   From: ben@kithailab.com OR diego@kithailab.com
+ *   Recipients → matched against customers.email → propose interview_rejected
  */
 
 import { supabase, FUNNEL_RANK, COHORT_OPTIONS } from './supabase'
@@ -42,6 +49,7 @@ type SyncCategoryResult = {
 export type SyncResult = {
   interview_invites: SyncCategoryResult
   enrollment_invites: SyncCategoryResult
+  interview_rejections: SyncCategoryResult
 }
 
 function emptyCategoryResult(totalEmails: number): SyncCategoryResult {
@@ -163,6 +171,48 @@ export async function syncEnrollmentInvites(
       result.matched++
       const emailId = await upsertEmail(email, customer.id, 'invite_to_enrol')
       await createPendingChange(customer, 'invited_to_enrol', result, recipientEmail, email, emailId)
+    } catch (err) {
+      result.errors.push(`${recipientEmail}: ${String(err)}`)
+    }
+  }
+
+  return result
+}
+
+/**
+ * Process interview rejection emails — store emails and queue pending funnel changes.
+ */
+export async function syncInterviewRejections(
+  emails: EmailMatch[]
+): Promise<SyncCategoryResult> {
+  const result = emptyCategoryResult(emails.length)
+
+  // Deduplicate by recipient email (keep earliest send date)
+  const emailMap = new Map<string, EmailMatch>()
+  for (const email of emails) {
+    const key = email.recipientEmail.toLowerCase()
+    if (!emailMap.has(key) || email.sentAt < emailMap.get(key)!.sentAt) {
+      emailMap.set(key, email)
+    }
+  }
+
+  for (const [recipientEmail, email] of emailMap) {
+    try {
+      const { data: customer, error: custErr } = await supabase
+        .from('customers')
+        .select('id, email, funnel_status')
+        .eq('email', recipientEmail)
+        .single()
+
+      if (custErr || !customer) {
+        result.no_customer_found++
+        result.details.push({ email: recipientEmail, action: 'no_customer_found' })
+        continue
+      }
+
+      result.matched++
+      const emailId = await upsertEmail(email, customer.id, 'interview_rejection')
+      await createPendingChange(customer, 'interview_rejected', result, recipientEmail, email, emailId)
     } catch (err) {
       result.errors.push(`${recipientEmail}: ${String(err)}`)
     }

@@ -60,6 +60,51 @@ export function FunnelStageDetail({
   paymentsByCustomer,
 }: FunnelStageDetailProps) {
   const [selectedStage, setSelectedStage] = useState<FunnelStatus>('applied')
+  const [actionLoading, setActionLoading] = useState<string | null>(null)
+
+  async function handleRejectApplication(customerId: string) {
+    if (!window.confirm('Are you sure you want to reject this application?')) return
+    setActionLoading(customerId)
+    try {
+      const res = await fetch('/api/customers/reject-application', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customer_id: customerId }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        alert(`Failed to reject application: ${data.error || 'Unknown error'}`)
+        return
+      }
+      window.location.reload()
+    } catch (err) {
+      alert(`Failed to reject application: ${String(err)}`)
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  async function handleNoShow(customerId: string) {
+    if (!window.confirm('Are you sure you want to mark this customer as a no-show?')) return
+    setActionLoading(customerId)
+    try {
+      const res = await fetch('/api/customers/no-show', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customer_id: customerId }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        alert(`Failed to mark as no-show: ${data.error || 'Unknown error'}`)
+        return
+      }
+      window.location.reload()
+    } catch (err) {
+      alert(`Failed to mark as no-show: ${String(err)}`)
+    } finally {
+      setActionLoading(null)
+    }
+  }
 
   const allStages = [...stages, ...SIDE_STATUSES]
   const stageCounts = new Map<FunnelStatus, number>()
@@ -132,6 +177,28 @@ export function FunnelStageDetail({
                   enrolInvitesByCustomer,
                   paymentsByCustomer,
                 )}
+                {selectedStage === 'applied' && (
+                  <td className="px-6 py-3 whitespace-nowrap">
+                    <button
+                      onClick={() => handleRejectApplication(customer.id)}
+                      disabled={actionLoading === customer.id}
+                      className="px-2 py-1 text-xs font-medium rounded border transition-colors text-[#EF4444] border-[rgba(239,68,68,0.3)] hover:bg-[rgba(239,68,68,0.1)] disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {actionLoading === customer.id ? 'Rejecting...' : '\u2715 Reject'}
+                    </button>
+                  </td>
+                )}
+                {selectedStage === 'booked' && (
+                  <td className="px-6 py-3 whitespace-nowrap">
+                    <button
+                      onClick={() => handleNoShow(customer.id)}
+                      disabled={actionLoading === customer.id}
+                      className="px-2 py-1 text-xs font-medium rounded border transition-colors text-[#D97706] border-[rgba(217,119,6,0.3)] hover:bg-[rgba(217,119,6,0.1)] disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {actionLoading === customer.id ? 'Updating...' : 'No Show'}
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
             {filteredCustomers.length === 0 && (
@@ -157,6 +224,7 @@ function renderStageHeaders(stage: FunnelStatus) {
           <th className="px-6 py-3 text-left kith-label">Applied On</th>
           <th className="px-6 py-3 text-left kith-label">Role</th>
           <th className="px-6 py-3 text-left kith-label">UTM Source</th>
+          <th className="px-6 py-3 text-left kith-label">Actions</th>
         </>
       )
     case 'invited_to_interview':
@@ -187,6 +255,14 @@ function renderStageHeaders(stage: FunnelStatus) {
           <th className="px-6 py-3 text-left kith-label">Paid On</th>
           <th className="px-6 py-3 text-left kith-label">Amount</th>
           <th className="px-6 py-3 text-left kith-label">Product</th>
+        </>
+      )
+    case 'booked':
+      return (
+        <>
+          <th className="px-6 py-3 text-left kith-label">Company</th>
+          <th className="px-6 py-3 text-left kith-label">Title</th>
+          <th className="px-6 py-3 text-left kith-label">Actions</th>
         </>
       )
     default:
@@ -298,6 +374,17 @@ function renderStageCells(
         </>
       )
     }
+    case 'booked':
+      return (
+        <>
+          <td className="px-6 py-3 text-sm text-[var(--color-text-secondary)] max-w-[200px] truncate">
+            {customer.linkedin_company || customer.company_domain || '-'}
+          </td>
+          <td className="px-6 py-3 text-sm text-[var(--color-text-secondary)] max-w-[200px] truncate">
+            {customer.linkedin_title || '-'}
+          </td>
+        </>
+      )
     default:
       // Side statuses — show company + title
       return (

@@ -148,6 +148,9 @@ export async function GET() {
   // 6. Luma Referral Webhook — checked via system_logs (Graph subscription → Edge Function)
   checks.push(checkWebhookHealth('Luma Referral', 'luma-referral-webhook'))
 
+  // 7. Cohort Application Form — checked via system_logs
+  checks.push(checkWebhookHealth('Cohort Application', 'cohort-application-form'))
+
   // 7. Auth0 — direct ping (public endpoint, no key needed)
   const auth0Domain = getSecret('NEXT_PUBLIC_AUTH0_DOMAIN') || getSecret('AUTH0_DOMAIN')
   if (auth0Domain) {
