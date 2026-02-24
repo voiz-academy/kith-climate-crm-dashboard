@@ -46,27 +46,61 @@ function getCompanyDisplay(customer: Customer): string {
   return '-'
 }
 
-type SortField = 'name' | 'email' | 'title' | 'company' | 'lead_type' | 'location' | 'attended' | 'funnel_status'
+type SortField = 'name' | 'email' | 'title' | 'company' | 'lead_type' | 'location' | 'attended' | 'funnel_status' | 'utm_source'
+
+function getDisplayName(customer: Customer, registration: WorkshopRegistration): string {
+  // Prefer enriched name, fall back to registration name
+  if (customer.first_name || customer.last_name) {
+    return `${customer.first_name || ''} ${customer.last_name || ''}`.trim()
+  }
+  return registration.name || '-'
+}
 
 export function EventRegistrantsTable({ rows, eventDate }: EventRegistrantsTableProps) {
   const [searchTerm, setSearchTerm] = useState('')
+  const [utmFilter, setUtmFilter] = useState<string>('all')
   const [currentPage, setCurrentPage] = useState(1)
   const [sortConfig, setSortConfig] = useState<{ field: SortField; ascending: boolean }>({
     field: 'name',
     ascending: true,
   })
 
+  // Compute unique UTM sources for this event
+  const utmOptions = useMemo(() => {
+    const sources = new Map<string, number>()
+    rows.forEach(({ registration }) => {
+      const src = registration.utm_source || '(none)'
+      sources.set(src, (sources.get(src) || 0) + 1)
+    })
+    return Array.from(sources.entries())
+      .sort((a, b) => b[1] - a[1])
+  }, [rows])
+
   // Filter rows
   const filteredRows = useMemo(() => {
-    if (!searchTerm) return rows
-    const search = searchTerm.toLowerCase()
-    return rows.filter(({ customer }) => {
-      const name = `${customer.first_name || ''} ${customer.last_name || ''}`.toLowerCase()
-      const email = (customer.email || '').toLowerCase()
-      const company = getCompanyDisplay(customer).toLowerCase()
-      return name.includes(search) || email.includes(search) || company.includes(search)
-    })
-  }, [rows, searchTerm])
+    let filtered = rows
+
+    // UTM filter
+    if (utmFilter !== 'all') {
+      filtered = filtered.filter(({ registration }) => {
+        const src = registration.utm_source || '(none)'
+        return src === utmFilter
+      })
+    }
+
+    // Search filter
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase()
+      filtered = filtered.filter(({ customer, registration }) => {
+        const name = getDisplayName(customer, registration).toLowerCase()
+        const email = (customer.email || registration.email || '').toLowerCase()
+        const company = getCompanyDisplay(customer).toLowerCase()
+        return name.includes(search) || email.includes(search) || company.includes(search)
+      })
+    }
+
+    return filtered
+  }, [rows, searchTerm, utmFilter])
 
   // Sort rows
   const sortedRows = useMemo(() => {
@@ -76,12 +110,12 @@ export function EventRegistrantsTable({ rows, eventDate }: EventRegistrantsTable
 
       switch (sortConfig.field) {
         case 'name':
-          aVal = `${a.customer.first_name || ''} ${a.customer.last_name || ''}`.toLowerCase()
-          bVal = `${b.customer.first_name || ''} ${b.customer.last_name || ''}`.toLowerCase()
+          aVal = getDisplayName(a.customer, a.registration).toLowerCase()
+          bVal = getDisplayName(b.customer, b.registration).toLowerCase()
           break
         case 'email':
-          aVal = (a.customer.email || '').toLowerCase()
-          bVal = (b.customer.email || '').toLowerCase()
+          aVal = (a.customer.email || a.registration.email || '').toLowerCase()
+          bVal = (b.customer.email || b.registration.email || '').toLowerCase()
           break
         case 'title':
           aVal = (a.customer.linkedin_title || '').toLowerCase()
@@ -107,6 +141,10 @@ export function EventRegistrantsTable({ rows, eventDate }: EventRegistrantsTable
           aVal = a.customer.funnel_status
           bVal = b.customer.funnel_status
           break
+        case 'utm_source':
+          aVal = (a.registration.utm_source || '').toLowerCase()
+          bVal = (b.registration.utm_source || '').toLowerCase()
+          break
       }
 
       const comparison = aVal.localeCompare(bVal)
@@ -123,6 +161,11 @@ export function EventRegistrantsTable({ rows, eventDate }: EventRegistrantsTable
 
   const handleSearchChange = (term: string) => {
     setSearchTerm(term)
+    setCurrentPage(1)
+  }
+
+  const handleUtmFilterChange = (value: string) => {
+    setUtmFilter(value)
     setCurrentPage(1)
   }
 
@@ -143,17 +186,31 @@ export function EventRegistrantsTable({ rows, eventDate }: EventRegistrantsTable
 
   return (
     <div>
-      {/* Search bar */}
+      {/* Toolbar: Search + UTM filter */}
       <div className="px-6 py-4 border-b border-[var(--color-border)]">
         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-          <div className="flex-1 max-w-md">
-            <input
-              type="text"
-              placeholder="Search by name, email, or company..."
-              value={searchTerm}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              className="w-full px-3 py-2 rounded border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:border-[#5B9A8B] focus:outline-none transition-colors"
-            />
+          <div className="flex flex-1 gap-3 items-center">
+            <div className="flex-1 max-w-md">
+              <input
+                type="text"
+                placeholder="Search by name, email, or company..."
+                value={searchTerm}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                className="w-full px-3 py-2 rounded border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:border-[#5B9A8B] focus:outline-none transition-colors"
+              />
+            </div>
+            <select
+              value={utmFilter}
+              onChange={(e) => handleUtmFilterChange(e.target.value)}
+              className="px-3 py-2 rounded border border-[var(--color-border)] bg-[var(--color-surface)] text-sm text-[var(--color-text-primary)] focus:border-[#5B9A8B] focus:outline-none transition-colors"
+            >
+              <option value="all">All Sources ({rows.length})</option>
+              {utmOptions.map(([source, count]) => (
+                <option key={source} value={source}>
+                  {source} ({count})
+                </option>
+              ))}
+            </select>
           </div>
           <div className="text-xs text-[var(--color-text-muted)]">
             Showing {filteredRows.length} of {rows.length} registrants
@@ -212,6 +269,12 @@ export function EventRegistrantsTable({ rows, eventDate }: EventRegistrantsTable
                 Repeat?
               </th>
               <th
+                onClick={() => handleSort('utm_source')}
+                className="px-6 py-3 text-left kith-label cursor-pointer hover:text-[var(--color-text-primary)] transition-colors select-none"
+              >
+                Source{getSortIndicator('utm_source')}
+              </th>
+              <th
                 onClick={() => handleSort('funnel_status')}
                 className="px-6 py-3 text-left kith-label cursor-pointer hover:text-[var(--color-text-primary)] transition-colors select-none"
               >
@@ -234,11 +297,11 @@ export function EventRegistrantsTable({ rows, eventDate }: EventRegistrantsTable
                       rel="noopener noreferrer"
                       className="text-sm font-semibold text-[#5B9A8B] hover:underline"
                     >
-                      {customer.first_name} {customer.last_name}
+                      {getDisplayName(customer, registration)}
                     </a>
                   ) : (
-                    <span className="text-sm text-[var(--color-text-tertiary)]">
-                      {customer.first_name} {customer.last_name}
+                    <span className="text-sm text-[var(--color-text-primary)]">
+                      {getDisplayName(customer, registration)}
                     </span>
                   )}
                 </td>
@@ -246,7 +309,7 @@ export function EventRegistrantsTable({ rows, eventDate }: EventRegistrantsTable
                 {/* Email */}
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className="text-sm text-[var(--color-text-secondary)]">
-                    {customer.email}
+                    {customer.email || registration.email || '-'}
                   </span>
                 </td>
 
@@ -310,6 +373,17 @@ export function EventRegistrantsTable({ rows, eventDate }: EventRegistrantsTable
                   )}
                 </td>
 
+                {/* UTM Source */}
+                <td className="px-6 py-4 whitespace-nowrap">
+                  {registration.utm_source ? (
+                    <span className="px-2 py-1 inline-flex text-xs leading-5 rounded bg-[rgba(107,141,214,0.1)] text-[#6B8DD6] border border-[rgba(107,141,214,0.2)]">
+                      {registration.utm_source}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-[var(--color-text-muted)]">-</span>
+                  )}
+                </td>
+
                 {/* Funnel status */}
                 <td className="px-6 py-4 whitespace-nowrap">
                   {customer.funnel_status !== 'registered' ? (
@@ -326,7 +400,7 @@ export function EventRegistrantsTable({ rows, eventDate }: EventRegistrantsTable
             ))}
             {paginatedRows.length === 0 && (
               <tr>
-                <td colSpan={9} className="px-6 py-12 text-center text-[var(--color-text-muted)]">
+                <td colSpan={10} className="px-6 py-12 text-center text-[var(--color-text-muted)]">
                   No registrants match your search
                 </td>
               </tr>

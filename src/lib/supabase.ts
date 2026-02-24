@@ -147,6 +147,9 @@ export type WorkshopRegistration = {
   attended: boolean
   source_api_id: string | null
   created_at: string
+  name: string | null
+  email: string | null
+  utm_source: string | null
 }
 
 export type CustomerWithAttendance = Customer & {
