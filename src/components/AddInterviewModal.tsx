@@ -5,6 +5,11 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 interface AddInterviewModalProps {
   onClose: () => void
   onCreated: () => void
+  initialCustomer?: {
+    id: string
+    email: string
+    name: string
+  }
 }
 
 interface FathomCheck {
@@ -40,7 +45,7 @@ const COHORT_OPTIONS = [
   { value: 'March 16th 2026', label: 'March 16th 2026' },
 ]
 
-export function AddInterviewModal({ onClose, onCreated }: AddInterviewModalProps) {
+export function AddInterviewModal({ onClose, onCreated, initialCustomer }: AddInterviewModalProps) {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<{
@@ -89,6 +94,26 @@ export function AddInterviewModal({ onClose, onCreated }: AddInterviewModalProps
   useEffect(() => {
     document.body.style.overflow = 'hidden'
     return () => { document.body.style.overflow = '' }
+  }, [])
+
+  // Auto-select customer when initialCustomer is provided
+  useEffect(() => {
+    if (initialCustomer) {
+      const nameParts = initialCustomer.name.split(' ')
+      const firstName = nameParts[0] || null
+      const lastName = nameParts.slice(1).join(' ') || null
+      const customerResult: CustomerResult = {
+        id: initialCustomer.id,
+        email: initialCustomer.email,
+        first_name: firstName,
+        last_name: lastName,
+        funnel_status: '',
+        linkedin_company: null,
+        linkedin_title: null,
+      }
+      handleSelectCustomer(customerResult)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Customer search — debounced fetch

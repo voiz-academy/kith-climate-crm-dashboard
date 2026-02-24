@@ -5,6 +5,8 @@ import {
   Customer, CohortApplication, Interview, InterviewBooking, Email, Payment,
   FunnelStatus, FUNNEL_LABELS,
 } from '@/lib/supabase'
+import { AddFathomDataModal } from './AddFathomDataModal'
+import { AddInterviewModal } from './AddInterviewModal'
 
 interface FunnelCRMProps {
   customers: Customer[]
@@ -345,6 +347,8 @@ export function FunnelCRM({
   const [expandedSides, setExpandedSides] = useState<Set<FunnelStatus>>(new Set())
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
+  const [fathomModalCustomer, setFathomModalCustomer] = useState<Customer | null>(null)
+  const [interviewModalCustomer, setInterviewModalCustomer] = useState<Customer | null>(null)
 
   function toggleSide(status: FunnelStatus) {
     setExpandedSides(prev => {
@@ -434,8 +438,8 @@ export function FunnelCRM({
       case 'applied': return ['Applied On', 'Role', 'UTM Source', 'Actions']
       case 'invited_to_interview': return ['Invite Sent', 'Company', 'Reminded']
       case 'booked': return ['Scheduled', 'Status', 'Actions']
-      case 'interviewed': return ['Interviewed On', 'Outcome', 'Interviewer', 'Actions']
-      case 'invited_to_enrol': return ['Invite Sent', 'Deadline', 'Company']
+      case 'interviewed': return ['Interviewed On', 'Outcome', 'Data', 'Interviewer', 'Actions']
+      case 'invited_to_enrol': return ['Invite Sent', 'Deadline', 'Data', 'Company']
       case 'enrolled': return ['Paid On', 'Amount', 'Product']
       default: return ['Company', 'Title']
     }
@@ -528,6 +532,8 @@ export function FunnelCRM({
       }
       case 'interviewed': {
         const interview = interviewsByCustomer[customer.id]
+        const hasFathom = !!(interview?.fathom_recording_id || interview?.fathom_recording_url)
+        const hasManual = !!(interview?.outcome || interview?.interviewer_notes || interview?.applicant_scoring)
         return (
           <>
             <td className="px-4 py-2.5 whitespace-nowrap text-sm text-[var(--color-text-secondary)]">
@@ -541,6 +547,32 @@ export function FunnelCRM({
               ) : (
                 <span className="text-sm text-[var(--color-text-muted)]">-</span>
               )}
+            </td>
+            <td className="px-4 py-2.5 whitespace-nowrap">
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={(e) => { e.stopPropagation(); if (!hasFathom) setFathomModalCustomer(customer) }}
+                  className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-medium rounded transition-colors ${
+                    hasFathom
+                      ? 'bg-[rgba(139,92,246,0.15)] text-[#A78BFA] border border-[rgba(139,92,246,0.3)]'
+                      : 'bg-[rgba(232,230,227,0.05)] text-[rgba(232,230,227,0.3)] border border-[rgba(232,230,227,0.1)] hover:border-[rgba(139,92,246,0.3)] hover:text-[rgba(139,92,246,0.5)] cursor-pointer'
+                  }`}
+                  title={hasFathom ? 'Fathom recording linked' : 'Click to add Fathom data'}
+                >
+                  {hasFathom ? '\u2713' : '\u2717'} Fathom
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); if (!hasManual) setInterviewModalCustomer(customer) }}
+                  className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-medium rounded transition-colors ${
+                    hasManual
+                      ? 'bg-[rgba(59,130,246,0.15)] text-[#60A5FA] border border-[rgba(59,130,246,0.3)]'
+                      : 'bg-[rgba(232,230,227,0.05)] text-[rgba(232,230,227,0.3)] border border-[rgba(232,230,227,0.1)] hover:border-[rgba(59,130,246,0.3)] hover:text-[rgba(59,130,246,0.5)] cursor-pointer'
+                  }`}
+                  title={hasManual ? 'Manual interview data added' : 'Click to add interview data'}
+                >
+                  {hasManual ? '\u2713' : '\u2717'} Manual
+                </button>
+              </div>
             </td>
             <td className="px-4 py-2.5 whitespace-nowrap text-sm text-[var(--color-text-secondary)]">
               {interview?.interviewer || '-'}
@@ -559,9 +591,12 @@ export function FunnelCRM({
       }
       case 'invited_to_enrol': {
         const invite = enrolInvitesByCustomer[customer.id]
+        const interview = interviewsByCustomer[customer.id]
         const inviteDate = invite?.sent_at ? new Date(invite.sent_at) : null
         const deadline = inviteDate ? new Date(inviteDate.getTime() + 7 * 24 * 60 * 60 * 1000) : null
         const isPastDeadline = deadline ? new Date() > deadline : false
+        const hasFathom = !!(interview?.fathom_recording_id || interview?.fathom_recording_url)
+        const hasManual = !!(interview?.outcome || interview?.interviewer_notes || interview?.applicant_scoring)
         return (
           <>
             <td className="px-4 py-2.5 whitespace-nowrap text-sm text-[var(--color-text-secondary)]">
@@ -575,6 +610,32 @@ export function FunnelCRM({
                 <span className={isPastDeadline ? 'text-[#EF4444]' : 'text-[var(--color-text-secondary)]'}>
                   {deadline ? formatDate(deadline.toISOString()) : '-'}
                 </span>
+              </div>
+            </td>
+            <td className="px-4 py-2.5 whitespace-nowrap">
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={(e) => { e.stopPropagation(); if (!hasFathom) setFathomModalCustomer(customer) }}
+                  className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-medium rounded transition-colors ${
+                    hasFathom
+                      ? 'bg-[rgba(139,92,246,0.15)] text-[#A78BFA] border border-[rgba(139,92,246,0.3)]'
+                      : 'bg-[rgba(232,230,227,0.05)] text-[rgba(232,230,227,0.3)] border border-[rgba(232,230,227,0.1)] hover:border-[rgba(139,92,246,0.3)] hover:text-[rgba(139,92,246,0.5)] cursor-pointer'
+                  }`}
+                  title={hasFathom ? 'Fathom recording linked' : 'Click to add Fathom data'}
+                >
+                  {hasFathom ? '\u2713' : '\u2717'} Fathom
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); if (!hasManual) setInterviewModalCustomer(customer) }}
+                  className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-medium rounded transition-colors ${
+                    hasManual
+                      ? 'bg-[rgba(59,130,246,0.15)] text-[#60A5FA] border border-[rgba(59,130,246,0.3)]'
+                      : 'bg-[rgba(232,230,227,0.05)] text-[rgba(232,230,227,0.3)] border border-[rgba(232,230,227,0.1)] hover:border-[rgba(59,130,246,0.3)] hover:text-[rgba(59,130,246,0.5)] cursor-pointer'
+                  }`}
+                  title={hasManual ? 'Manual interview data added' : 'Click to add interview data'}
+                >
+                  {hasManual ? '\u2713' : '\u2717'} Manual
+                </button>
               </div>
             </td>
             <td className="px-4 py-2.5 text-sm text-[var(--color-text-secondary)] max-w-[180px] truncate">
@@ -685,6 +746,32 @@ export function FunnelCRM({
           booking={bookingsByCustomer[selectedCustomer.id]}
           reminderCount={reminderCountsByCustomer[selectedCustomer.id] || 0}
           onClose={() => setSelectedCustomer(null)}
+        />
+      )}
+
+      {/* Fathom data modal */}
+      {fathomModalCustomer && (
+        <AddFathomDataModal
+          customer={{
+            id: fathomModalCustomer.id,
+            email: fathomModalCustomer.email,
+            name: `${fathomModalCustomer.first_name || ''} ${fathomModalCustomer.last_name || ''}`.trim(),
+          }}
+          onClose={() => setFathomModalCustomer(null)}
+          onSaved={() => window.location.reload()}
+        />
+      )}
+
+      {/* Interview data modal */}
+      {interviewModalCustomer && (
+        <AddInterviewModal
+          initialCustomer={{
+            id: interviewModalCustomer.id,
+            email: interviewModalCustomer.email,
+            name: `${interviewModalCustomer.first_name || ''} ${interviewModalCustomer.last_name || ''}`.trim(),
+          }}
+          onClose={() => setInterviewModalCustomer(null)}
+          onCreated={() => window.location.reload()}
         />
       )}
 
