@@ -326,6 +326,7 @@ export const EVENT_LABELS: Record<string, string> = {
   '2025-12-17': 'Build a Climate Solution — Dec 17',
   '2026-01-13': 'Build a Climate Solution — Jan 13',
   '2026-02-05': 'Claude Code for Climate Work — Feb 5',
+  '2026-02-26': 'Claude Code for Climate Risk — Feb 26',
 }
 
 export function getEventLabel(date: string): string {
@@ -338,6 +339,7 @@ export function getEventShortLabel(date: string): string {
     '2025-12-17': 'Dec 17',
     '2026-01-13': 'Jan 13',
     '2026-02-05': 'Feb 5',
+    '2026-02-26': 'Feb 26',
   }
   return labels[date] || new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }

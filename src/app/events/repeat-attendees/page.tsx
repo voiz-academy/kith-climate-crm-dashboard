@@ -1,12 +1,28 @@
 import { fetchAll, Customer, WorkshopRegistration } from '@/lib/supabase'
+import { RepeatAttendeesTable } from '@/components/RepeatAttendeesTable'
+import type { RepeatAttendee, EventRegistration } from '@/components/RepeatAttendeeDetailModal'
 
-async function getRepeatAttendees() {
+async function getRepeatAttendees(): Promise<RepeatAttendee[]> {
   const leads = await fetchAll<Customer>('customers')
   const registrations = await fetchAll<WorkshopRegistration>('workshop_registrations')
 
-  // Build map of lead_id to attended dates
+  // Build map of customer_id to attended dates (only attended=true)
   const attendedDatesMap = new Map<string, string[]>()
+  // Build map of customer_id to all registrations
+  const registrationsMap = new Map<string, EventRegistration[]>()
+
   registrations.forEach((reg: WorkshopRegistration) => {
+    // Track all registrations for the modal
+    const regs = registrationsMap.get(reg.customer_id) || []
+    regs.push({
+      event_name: reg.event_name,
+      event_date: reg.event_date,
+      attended: reg.attended,
+      registration_date: reg.registration_date,
+    })
+    registrationsMap.set(reg.customer_id, regs)
+
+    // Track attended dates for filtering
     if (reg.attended) {
       const dates = attendedDatesMap.get(reg.customer_id) || []
       dates.push(reg.event_date)
@@ -15,28 +31,16 @@ async function getRepeatAttendees() {
   })
 
   // Filter to leads who attended 2+ workshops
-  const repeatAttendees = leads
+  const repeatAttendees: RepeatAttendee[] = leads
     .map((l: Customer) => ({
       ...l,
-      attended_dates: attendedDatesMap.get(l.id) || []
+      attended_dates: attendedDatesMap.get(l.id) || [],
+      registrations: registrationsMap.get(l.id) || [],
     }))
     .filter(l => l.attended_dates.length >= 2)
     .sort((a, b) => b.attended_dates.length - a.attended_dates.length)
 
   return repeatAttendees
-}
-
-const leadTypeColors = {
-  professional: 'bg-[rgba(91,154,139,0.15)] text-[#5B9A8B] border border-[rgba(91,154,139,0.3)]',
-  pivoter: 'bg-[rgba(107,141,214,0.15)] text-[#6B8DD6] border border-[rgba(107,141,214,0.3)]',
-  unknown: 'bg-[rgba(232,230,227,0.05)] text-[rgba(232,230,227,0.5)] border border-[rgba(232,230,227,0.1)]',
-}
-
-function formatAttendedDates(dates: string[]): string {
-  return dates
-    .sort()
-    .map(d => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))
-    .join(', ')
 }
 
 export const dynamic = 'force-dynamic'
@@ -55,80 +59,7 @@ export default async function RepeatAttendeesPage() {
         </p>
       </div>
 
-      {/* Table */}
-      <div className="kith-card">
-        <div className="overflow-x-auto">
-          <table className="min-w-full">
-            <thead>
-              <tr className="border-b border-[var(--color-border)]">
-                <th className="px-6 py-3 text-left kith-label">Name</th>
-                <th className="px-6 py-3 text-left kith-label">Title</th>
-                <th className="px-6 py-3 text-left kith-label">Type</th>
-                <th className="px-6 py-3 text-left kith-label">Company</th>
-                <th className="px-6 py-3 text-left kith-label"># Attended</th>
-                <th className="px-6 py-3 text-left kith-label">Dates</th>
-              </tr>
-            </thead>
-            <tbody>
-              {repeatAttendees.map((lead) => (
-                <tr
-                  key={lead.id}
-                  className="border-b border-[var(--color-border-subtle)] hover:bg-[rgba(91,154,139,0.05)] transition-colors"
-                >
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {lead.linkedin_url ? (
-                      <a
-                        href={lead.linkedin_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm font-semibold text-[#5B9A8B] hover:text-[#6FB3A2] transition-colors"
-                      >
-                        {lead.first_name} {lead.last_name}
-                      </a>
-                    ) : (
-                      <span className="text-sm text-[var(--color-text-primary)]">
-                        {lead.first_name} {lead.last_name}
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm text-[var(--color-text-secondary)] max-w-xs truncate">
-                      {lead.linkedin_title || '-'}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 inline-flex text-xs leading-5 font-medium rounded ${leadTypeColors[lead.lead_type]}`}>
-                      {lead.lead_type}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-[var(--color-text-secondary)]">
-                      {lead.linkedin_company || lead.company_domain || '-'}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-[rgba(91,154,139,0.15)] text-[#5B9A8B] text-sm font-semibold">
-                      {lead.attended_dates.length}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-[var(--color-text-secondary)]">
-                      {formatAttendedDates(lead.attended_dates)}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {repeatAttendees.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-[var(--color-text-muted)]">
-                    No repeat attendees found
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <RepeatAttendeesTable attendees={repeatAttendees} />
     </>
   )
 }

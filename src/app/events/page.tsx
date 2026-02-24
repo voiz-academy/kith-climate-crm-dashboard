@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { fetchAll, Customer, WorkshopRegistration, getEventLabel, getEventShortLabel, personalDomains } from '@/lib/supabase'
 import { EventComparisonChart } from '@/components/EventComparisonChart'
 
@@ -116,7 +117,8 @@ async function getEventComparisonData(): Promise<EventStats[]> {
     })
   }
 
-  return eventStats
+  // Reverse for display: latest events first (processing order was chronological for new/returning accuracy)
+  return eventStats.reverse()
 }
 
 export const dynamic = 'force-dynamic'
@@ -153,12 +155,17 @@ export default async function EventComparisonPage() {
       {/* Event cards grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {events.map((event) => (
-          <div key={event.date} className="kith-card p-6">
+          <Link key={event.date} href={`/events/${event.date}`} className="kith-card p-6 block hover:border-[#5B9A8B] transition-colors">
             {/* Event header */}
             <div className="mb-4">
-              <h3 className="text-base font-semibold text-[var(--color-text-primary)]">
-                {event.label}
-              </h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-base font-semibold text-[var(--color-text-primary)]">
+                  {event.label}
+                </h3>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--color-text-muted)]">
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </div>
               <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
                 {event.eventName}
               </p>
@@ -257,7 +264,7 @@ export default async function EventComparisonPage() {
                 </div>
               </div>
             )}
-          </div>
+          </Link>
         ))}
       </div>
     </>
