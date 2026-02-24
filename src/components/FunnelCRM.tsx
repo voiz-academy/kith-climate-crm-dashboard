@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Customer, CohortApplication, Interview, InterviewBooking, Email, Payment,
   FunnelStatus, FUNNEL_LABELS,
@@ -71,6 +71,267 @@ function formatCurrency(cents: number, currency: string): string {
   }).format(cents / 100)
 }
 
+/** Full-screen customer detail modal */
+function CustomerDetailModal({
+  customer,
+  application,
+  interview,
+  interviewInvite,
+  enrolInvite,
+  payment,
+  booking,
+  reminderCount,
+  onClose,
+}: {
+  customer: Customer
+  application?: CohortApplication
+  interview?: Interview
+  interviewInvite?: Email
+  enrolInvite?: Email
+  payment?: Payment
+  booking?: InterviewBooking
+  reminderCount: number
+  onClose: () => void
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={onClose}>
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+
+      {/* Modal */}
+      <div
+        className="relative w-full max-w-2xl max-h-[85vh] overflow-y-auto mx-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] shadow-2xl"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 border-b border-[var(--color-border)] bg-[var(--color-bg)]">
+          <div>
+            <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">
+              {customer.first_name} {customer.last_name}
+            </h2>
+            <p className="text-sm text-[var(--color-text-secondary)]">{customer.email}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded hover:bg-[var(--color-surface)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="px-6 py-5 space-y-6">
+          {/* Status & Classification */}
+          <section>
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-3">Status & Classification</h3>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+              <DetailRow label="Funnel Status" value={FUNNEL_LABELS[customer.funnel_status]} />
+              <DetailRow label="Lead Type">
+                <span className={`px-2 py-0.5 text-xs font-medium rounded ${leadTypeColors[customer.lead_type]}`}>
+                  {customer.lead_type}
+                </span>
+              </DetailRow>
+              <DetailRow label="Enrichment" value={customer.enrichment_status} />
+              <DetailRow label="Customer Since" value={formatDate(customer.created_at)} />
+            </div>
+          </section>
+
+          {/* LinkedIn / Professional */}
+          {(customer.linkedin_title || customer.linkedin_company || customer.linkedin_url) && (
+            <section>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-3">Professional</h3>
+              <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+                <DetailRow label="Title" value={customer.linkedin_title} />
+                <DetailRow label="Company" value={customer.linkedin_company} />
+                <DetailRow label="Industry" value={customer.linkedin_industry} />
+                <DetailRow label="Location" value={customer.linkedin_location} />
+                {customer.linkedin_headline && (
+                  <div className="col-span-2">
+                    <DetailRow label="Headline" value={customer.linkedin_headline} />
+                  </div>
+                )}
+                {customer.linkedin_url && (
+                  <div className="col-span-2">
+                    <DetailRow label="LinkedIn">
+                      <a
+                        href={customer.linkedin_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-[#5B9A8B] hover:underline truncate block max-w-[400px]"
+                      >
+                        {customer.linkedin_url}
+                      </a>
+                    </DetailRow>
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
+
+          {/* Application */}
+          {application && (
+            <section>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-3">Application</h3>
+              <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+                <DetailRow label="Applied On" value={formatDate(application.created_at)} />
+                <DetailRow label="Role" value={application.role} />
+                <DetailRow label="UTM Source" value={application.utm_source || 'Direct'} />
+                <DetailRow label="Budget Confirmed" value={application.budget_confirmed ? 'Yes' : application.budget_confirmed === false ? 'No' : '-'} />
+                {application.background && (
+                  <div className="col-span-2">
+                    <DetailRow label="Background" value={application.background} />
+                  </div>
+                )}
+                {application.goals && (
+                  <div className="col-span-2">
+                    <DetailRow label="Goals" value={application.goals} />
+                  </div>
+                )}
+                {application.ai_view && (
+                  <div className="col-span-2">
+                    <DetailRow label="AI View" value={application.ai_view} />
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
+
+          {/* Interview Invite */}
+          {interviewInvite && (
+            <section>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-3">Interview Invite</h3>
+              <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+                <DetailRow label="Invited On" value={formatDate(interviewInvite.sent_at)} />
+                <DetailRow label="Reminders Sent" value={String(reminderCount)} />
+              </div>
+            </section>
+          )}
+
+          {/* Booking */}
+          {booking && (
+            <section>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-3">Booking</h3>
+              <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+                <DetailRow label="Scheduled For" value={formatDate(booking.scheduled_at)} />
+                <DetailRow label="Interviewer" value={booking.interviewer_name} />
+                {booking.cancelled_at && (
+                  <>
+                    <DetailRow label="Cancelled At" value={formatDate(booking.cancelled_at)} />
+                    <DetailRow label="Cancel Reason" value={booking.cancel_reason} />
+                  </>
+                )}
+                {booking.location_url && (
+                  <div className="col-span-2">
+                    <DetailRow label="Location">
+                      <a
+                        href={booking.location_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-[#5B9A8B] hover:underline truncate block max-w-[400px]"
+                      >
+                        {booking.location_url}
+                      </a>
+                    </DetailRow>
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
+
+          {/* Interview */}
+          {interview && (
+            <section>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-3">Interview</h3>
+              <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+                <DetailRow label="Conducted On" value={formatDate(interview.conducted_at || interview.created_at)} />
+                <DetailRow label="Interviewer" value={interview.interviewer} />
+                <DetailRow label="Outcome">
+                  {interview.outcome ? (
+                    <span className={`px-2 py-0.5 text-xs font-medium rounded ${outcomeColors[interview.outcome] || ''}`}>
+                      {interview.outcome}
+                    </span>
+                  ) : (
+                    <span className="text-sm text-[var(--color-text-muted)]">-</span>
+                  )}
+                </DetailRow>
+                <DetailRow label="Scoring" value={interview.applicant_scoring != null ? String(interview.applicant_scoring) : null} />
+                {interview.outcome_reason && (
+                  <div className="col-span-2">
+                    <DetailRow label="Outcome Reason" value={interview.outcome_reason} />
+                  </div>
+                )}
+                {interview.fathom_recording_url && (
+                  <div className="col-span-2">
+                    <DetailRow label="Recording">
+                      <a
+                        href={interview.fathom_recording_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-[#5B9A8B] hover:underline truncate block max-w-[400px]"
+                      >
+                        {interview.fathom_recording_url}
+                      </a>
+                    </DetailRow>
+                  </div>
+                )}
+                {interview.fathom_summary && (
+                  <div className="col-span-2">
+                    <DetailRow label="Summary" value={interview.fathom_summary} />
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
+
+          {/* Enrolment Invite */}
+          {enrolInvite && (
+            <section>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-3">Enrolment Invite</h3>
+              <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+                <DetailRow label="Invited On" value={formatDate(enrolInvite.sent_at)} />
+                <DetailRow label="Deadline" value={
+                  enrolInvite.sent_at
+                    ? formatDate(new Date(new Date(enrolInvite.sent_at).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString())
+                    : '-'
+                } />
+              </div>
+            </section>
+          )}
+
+          {/* Payment */}
+          {payment && (
+            <section>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-3">Payment</h3>
+              <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+                <DetailRow label="Paid On" value={formatDate(payment.paid_at)} />
+                <DetailRow label="Amount" value={formatCurrency(payment.amount_cents, payment.currency)} />
+                <DetailRow label="Product" value={payment.product} />
+                <DetailRow label="Status" value={payment.status} />
+                {payment.refunded_at && (
+                  <DetailRow label="Refunded On" value={formatDate(payment.refunded_at)} />
+                )}
+              </div>
+            </section>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/** Simple label/value row for the detail modal */
+function DetailRow({ label, value, children }: { label: string; value?: string | null; children?: React.ReactNode }) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-xs text-[var(--color-text-muted)]">{label}</dt>
+      <dd className="mt-0.5 text-sm text-[var(--color-text-primary)] break-words">
+        {children || value || '-'}
+      </dd>
+    </div>
+  )
+}
+
 export function FunnelCRM({
   customers,
   applicationsByCustomer,
@@ -83,6 +344,7 @@ export function FunnelCRM({
 }: FunnelCRMProps) {
   const [expandedSides, setExpandedSides] = useState<Set<FunnelStatus>>(new Set())
   const [actionLoading, setActionLoading] = useState<string | null>(null)
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
 
   function toggleSide(status: FunnelStatus) {
     setExpandedSides(prev => {
@@ -196,7 +458,7 @@ export function FunnelCRM({
             </td>
             <td className="px-4 py-2.5 whitespace-nowrap">
               <button
-                onClick={() => handleRejectApplication(customer.id)}
+                onClick={(e) => { e.stopPropagation(); handleRejectApplication(customer.id) }}
                 disabled={actionLoading === customer.id}
                 className="px-2 py-1 text-xs font-medium rounded border transition-colors text-[#EF4444] border-[rgba(239,68,68,0.3)] hover:bg-[rgba(239,68,68,0.1)] disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -254,7 +516,7 @@ export function FunnelCRM({
             </td>
             <td className="px-4 py-2.5 whitespace-nowrap">
               <button
-                onClick={() => handleNoShow(customer.id)}
+                onClick={(e) => { e.stopPropagation(); handleNoShow(customer.id) }}
                 disabled={actionLoading === customer.id}
                 className="px-2 py-1 text-xs font-medium rounded border transition-colors text-[#D97706] border-[rgba(217,119,6,0.3)] hover:bg-[rgba(217,119,6,0.1)] disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -285,7 +547,7 @@ export function FunnelCRM({
             </td>
             <td className="px-4 py-2.5 whitespace-nowrap">
               <button
-                onClick={() => handleRejectInterview(customer.id)}
+                onClick={(e) => { e.stopPropagation(); handleRejectInterview(customer.id) }}
                 disabled={actionLoading === customer.id}
                 className="px-2 py-1 text-xs font-medium rounded border transition-colors text-[#EF4444] border-[rgba(239,68,68,0.3)] hover:bg-[rgba(239,68,68,0.1)] disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -354,7 +616,7 @@ export function FunnelCRM({
 
   function renderStageTable(stage: FunnelStatus, stageCustomers: Customer[], isSide = false) {
     const columns = renderStageColumns(stage)
-    const baseColumns = ['Name', 'Email', 'Type']
+    const baseColumns = ['Name', 'Email']
 
     return (
       <div className="overflow-x-auto">
@@ -373,7 +635,8 @@ export function FunnelCRM({
             {stageCustomers.map(customer => (
               <tr
                 key={customer.id}
-                className={`border-b border-[var(--color-border-subtle)] hover:bg-[rgba(91,154,139,0.05)] transition-colors ${
+                onClick={() => setSelectedCustomer(customer)}
+                className={`border-b border-[var(--color-border-subtle)] hover:bg-[rgba(91,154,139,0.05)] transition-colors cursor-pointer ${
                   isSide ? 'opacity-75' : ''
                 }`}
               >
@@ -382,11 +645,6 @@ export function FunnelCRM({
                 </td>
                 <td className="px-4 py-2.5 whitespace-nowrap text-sm text-[var(--color-text-secondary)]">
                   {customer.email}
-                </td>
-                <td className="px-4 py-2.5 whitespace-nowrap">
-                  <span className={`px-2 py-0.5 inline-flex text-xs leading-5 font-medium rounded ${leadTypeColors[customer.lead_type]}`}>
-                    {customer.lead_type}
-                  </span>
                 </td>
                 {renderCustomerCells(isSide ? stage : stage, customer)}
               </tr>
@@ -404,8 +662,32 @@ export function FunnelCRM({
     )
   }
 
+  // Close modal on Escape key
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') setSelectedCustomer(null)
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
   return (
     <div className="space-y-6">
+      {/* Customer detail modal */}
+      {selectedCustomer && (
+        <CustomerDetailModal
+          customer={selectedCustomer}
+          application={applicationsByCustomer[selectedCustomer.id]}
+          interview={interviewsByCustomer[selectedCustomer.id]}
+          interviewInvite={interviewInvitesByCustomer[selectedCustomer.id]}
+          enrolInvite={enrolInvitesByCustomer[selectedCustomer.id]}
+          payment={paymentsByCustomer[selectedCustomer.id]}
+          booking={bookingsByCustomer[selectedCustomer.id]}
+          reminderCount={reminderCountsByCustomer[selectedCustomer.id] || 0}
+          onClose={() => setSelectedCustomer(null)}
+        />
+      )}
+
       {STAGE_SECTIONS.map(({ stage, sideStatuses }) => {
         const stageCustomers = byStatus.get(stage) || []
         const sideGroups = sideStatuses
@@ -467,7 +749,6 @@ export function FunnelCRM({
                               <tr className="border-b border-[var(--color-border-subtle)]">
                                 <th className="px-4 py-2 text-left kith-label">Name</th>
                                 <th className="px-4 py-2 text-left kith-label">Email</th>
-                                <th className="px-4 py-2 text-left kith-label">Type</th>
                                 {sideColumns.map(col => (
                                   <th key={col} className="px-4 py-2 text-left kith-label">{col}</th>
                                 ))}
@@ -477,18 +758,14 @@ export function FunnelCRM({
                               {sideCustomers.map(customer => (
                                 <tr
                                   key={customer.id}
-                                  className="border-b border-[var(--color-border-subtle)] hover:bg-[rgba(91,154,139,0.03)] transition-colors opacity-75"
+                                  onClick={() => setSelectedCustomer(customer)}
+                                  className="border-b border-[var(--color-border-subtle)] hover:bg-[rgba(91,154,139,0.03)] transition-colors opacity-75 cursor-pointer"
                                 >
                                   <td className="px-4 py-2.5 whitespace-nowrap text-sm text-[var(--color-text-primary)]">
                                     {customer.first_name} {customer.last_name}
                                   </td>
                                   <td className="px-4 py-2.5 whitespace-nowrap text-sm text-[var(--color-text-secondary)]">
                                     {customer.email}
-                                  </td>
-                                  <td className="px-4 py-2.5 whitespace-nowrap">
-                                    <span className={`px-2 py-0.5 inline-flex text-xs leading-5 font-medium rounded ${leadTypeColors[customer.lead_type]}`}>
-                                      {customer.lead_type}
-                                    </span>
                                   </td>
                                   <td className="px-4 py-2.5 text-sm text-[var(--color-text-secondary)] max-w-[180px] truncate">
                                     {customer.linkedin_company || customer.company_domain || '-'}
