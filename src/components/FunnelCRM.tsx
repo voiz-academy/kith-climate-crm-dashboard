@@ -119,6 +119,28 @@ export function FunnelCRM({
     }
   }
 
+  async function handleRejectInterview(customerId: string) {
+    if (!window.confirm('Are you sure you want to reject this interview?')) return
+    setActionLoading(customerId)
+    try {
+      const res = await fetch('/api/customers/reject-interview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customer_id: customerId }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        alert(`Failed to reject interview: ${data.error || 'Unknown error'}`)
+        return
+      }
+      window.location.reload()
+    } catch (err) {
+      alert(`Failed to reject interview: ${String(err)}`)
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
   async function handleNoShow(customerId: string) {
     if (!window.confirm('Are you sure you want to mark this customer as a no-show?')) return
     setActionLoading(customerId)
@@ -146,7 +168,7 @@ export function FunnelCRM({
       case 'applied': return ['Applied On', 'Role', 'UTM Source', 'Actions']
       case 'invited_to_interview': return ['Invite Sent', 'Company']
       case 'booked': return ['Company', 'Title', 'Actions']
-      case 'interviewed': return ['Interviewed On', 'Outcome', 'Interviewer']
+      case 'interviewed': return ['Interviewed On', 'Outcome', 'Interviewer', 'Actions']
       case 'invited_to_enrol': return ['Invite Sent', 'Company']
       case 'enrolled': return ['Paid On', 'Amount', 'Product']
       default: return ['Company', 'Title']
@@ -231,6 +253,15 @@ export function FunnelCRM({
             </td>
             <td className="px-4 py-2.5 whitespace-nowrap text-sm text-[var(--color-text-secondary)]">
               {interview?.interviewer || '-'}
+            </td>
+            <td className="px-4 py-2.5 whitespace-nowrap">
+              <button
+                onClick={() => handleRejectInterview(customer.id)}
+                disabled={actionLoading === customer.id}
+                className="px-2 py-1 text-xs font-medium rounded border transition-colors text-[#EF4444] border-[rgba(239,68,68,0.3)] hover:bg-[rgba(239,68,68,0.1)] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {actionLoading === customer.id ? 'Rejecting...' : '\u2715 Reject'}
+              </button>
             </td>
           </>
         )
