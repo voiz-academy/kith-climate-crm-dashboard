@@ -19,6 +19,9 @@ type EventStats = {
   newLeads: number
   returningLeads: number
   topCompanies: { name: string; count: number }[]
+  sourcesTracked: number
+  sourcesRate: number
+  topSources: { name: string; count: number }[]
 }
 
 async function getEventComparisonData(): Promise<EventStats[]> {
@@ -97,6 +100,20 @@ async function getEventComparisonData(): Promise<EventStats[]> {
       .slice(0, 5)
       .map(([name, count]) => ({ name, count }))
 
+    // UTM source tracking
+    const sourceCount = new Map<string, number>()
+    let sourcesTracked = 0
+    regs.forEach(r => {
+      if (r.utm_source) {
+        sourcesTracked++
+        sourceCount.set(r.utm_source, (sourceCount.get(r.utm_source) || 0) + 1)
+      }
+    })
+    const topSources = Array.from(sourceCount.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([name, count]) => ({ name, count }))
+
     eventStats.push({
       date,
       label: getEventLabel(date),
@@ -114,6 +131,9 @@ async function getEventComparisonData(): Promise<EventStats[]> {
       newLeads,
       returningLeads,
       topCompanies,
+      sourcesTracked,
+      sourcesRate: Math.round((sourcesTracked / registered) * 100),
+      topSources,
     })
   }
 
@@ -264,6 +284,35 @@ export default async function EventComparisonPage() {
                 </div>
               </div>
             )}
+
+            {/* Referral sources */}
+            <div className="pt-4 border-t border-[var(--color-border-subtle)]">
+              <div className="flex justify-between text-xs text-[var(--color-text-muted)] mb-2">
+                <span>Referral Sources</span>
+                <span>{event.sourcesTracked} tracked ({event.sourcesRate}%)</span>
+              </div>
+              {event.topSources.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {event.topSources.map((s) => (
+                    <span
+                      key={s.name}
+                      className="px-2 py-1 text-xs rounded bg-[rgba(107,141,214,0.1)] text-[#6B8DD6] border border-[rgba(107,141,214,0.2)]"
+                    >
+                      {s.name} ({s.count})
+                    </span>
+                  ))}
+                  {event.sourcesTracked > event.topSources.reduce((sum, s) => sum + s.count, 0) && (
+                    <span className="px-2 py-1 text-xs rounded bg-[var(--color-surface)] text-[var(--color-text-muted)]">
+                      +{event.sourcesTracked - event.topSources.reduce((sum, s) => sum + s.count, 0)} other
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <div className="text-xs text-[var(--color-text-muted)]">
+                  No tracked sources
+                </div>
+              )}
+            </div>
           </Link>
         ))}
       </div>

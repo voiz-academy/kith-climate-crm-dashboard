@@ -40,7 +40,19 @@ async function getEventRegistrants(date: string) {
     rows.push({ customer, registration: reg, isRepeat })
   }
 
-  return { rows, eventName, totalCount: eventRegs.length }
+  // Compute UTM source breakdown
+  const sourceBreakdown = new Map<string, number>()
+  eventRegs.forEach(reg => {
+    const src = reg.utm_source || '(no source)'
+    sourceBreakdown.set(src, (sourceBreakdown.get(src) || 0) + 1)
+  })
+  const utmSources = Array.from(sourceBreakdown.entries())
+    .sort((a, b) => b[1] - a[1])
+    .map(([name, count]) => ({ name, count, pct: Math.round((count / eventRegs.length) * 100) }))
+
+  const trackedCount = eventRegs.filter(r => r.utm_source).length
+
+  return { rows, eventName, totalCount: eventRegs.length, utmSources, trackedCount }
 }
 
 export default async function EventDetailPage({
@@ -49,8 +61,9 @@ export default async function EventDetailPage({
   params: Promise<{ date: string }>
 }) {
   const { date } = await params
-  const { rows, eventName, totalCount } = await getEventRegistrants(date)
+  const { rows, eventName, totalCount, utmSources, trackedCount } = await getEventRegistrants(date)
   const label = getEventLabel(date)
+  const trackedPct = totalCount > 0 ? Math.round((trackedCount / totalCount) * 100) : 0
 
   return (
     <>
@@ -81,6 +94,64 @@ export default async function EventDetailPage({
         <p className="text-sm text-[var(--color-text-muted)] mt-1">
           {totalCount} registrant{totalCount !== 1 ? 's' : ''}
         </p>
+      </div>
+
+      {/* Referral Sources Breakdown */}
+      <div className="kith-card p-6 mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-sm font-semibold text-[var(--color-text-primary)]">
+            Referral Sources
+          </h2>
+          <span className="text-xs text-[var(--color-text-muted)]">
+            {trackedCount} of {totalCount} tracked ({trackedPct}%)
+          </span>
+        </div>
+
+        {/* Source bars */}
+        <div className="space-y-3">
+          {utmSources.map(({ name, count, pct }) => (
+            <div key={name}>
+              <div className="flex items-center justify-between mb-1">
+                <span className={`text-sm ${name === '(no source)' ? 'text-[var(--color-text-muted)]' : 'text-[var(--color-text-secondary)]'}`}>
+                  {name}
+                </span>
+                <span className="text-xs text-[var(--color-text-muted)] tabular-nums">
+                  {count} ({pct}%)
+                </span>
+              </div>
+              <div className="h-2 rounded-full bg-[var(--color-surface)] overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${name === '(no source)' ? 'bg-[rgba(232,230,227,0.15)]' : 'bg-[#6B8DD6]'}`}
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Visual summary bar */}
+        {utmSources.length > 1 && (
+          <div className="mt-5 pt-4 border-t border-[var(--color-border-subtle)]">
+            <div className="text-xs text-[var(--color-text-muted)] mb-2">Distribution</div>
+            <div className="flex h-4 rounded-full overflow-hidden bg-[var(--color-surface)]">
+              {utmSources.filter(s => s.name !== '(no source)').map(({ name, pct }) => (
+                <div
+                  key={name}
+                  className="bg-[#6B8DD6] border-r border-[var(--color-background)]"
+                  style={{ width: `${pct}%`, minWidth: pct > 0 ? '2px' : '0' }}
+                  title={`${name}: ${pct}%`}
+                />
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-3 mt-2">
+              {utmSources.filter(s => s.name !== '(no source)').map(({ name, count }) => (
+                <span key={name} className="text-xs text-[#6B8DD6]">
+                  {name} ({count})
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Registrants table */}
