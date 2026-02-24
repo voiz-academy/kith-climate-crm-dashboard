@@ -9,6 +9,7 @@ import { FunnelCRM } from '@/components/FunnelCRM'
 import { PendingChangesButton } from '@/components/PendingChangesButton'
 import { PendingInterviewsButton } from '@/components/PendingInterviewsButton'
 import { AddInterviewButton } from '@/components/AddInterviewButton'
+import { SyncOutlookButton } from '@/components/SyncOutlookButton'
 import { CohortSelector } from '@/components/CohortSelector'
 
 async function getFunnelData() {
@@ -200,6 +201,7 @@ export default async function FunnelPage({ searchParams }: PageProps) {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <SyncOutlookButton />
             <AddInterviewButton />
             {pendingInterviewsCount > 0 && (
               <PendingInterviewsButton count={pendingInterviewsCount} />
