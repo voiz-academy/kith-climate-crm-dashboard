@@ -50,22 +50,39 @@ export async function findOrCreateCustomer(
     lastName = parts.length > 1 ? parts.slice(1).join(' ') : null
   }
 
-  // Create new customer
+  // Create new customer (upsert to handle race conditions where two
+  // concurrent requests both pass the SELECT check above)
   const { data: inserted, error: insertErr } = await supabase
     .from('customers')
-    .insert({
-      email: normEmail,
-      first_name: firstName,
-      last_name: lastName,
-      funnel_status: 'registered',
-      enrichment_status: 'pending',
-      lead_type: 'unknown',
-    })
+    .upsert(
+      {
+        email: normEmail,
+        first_name: firstName,
+        last_name: lastName,
+        funnel_status: 'registered',
+        enrichment_status: 'pending',
+        lead_type: 'unknown',
+      },
+      { onConflict: 'email', ignoreDuplicates: true }
+    )
     .select('id')
     .single()
 
   if (insertErr || !inserted) {
-    throw new Error(`Failed to create customer for ${normEmail}: ${insertErr?.message}`)
+    // If the upsert returned nothing (ignoreDuplicates skipped it),
+    // re-fetch the existing row
+    const { data: retried, error: retryErr } = await supabase
+      .from('customers')
+      .select('id')
+      .eq('email', normEmail)
+      .limit(1)
+      .single()
+
+    if (retried && !retryErr) {
+      return { customerId: retried.id, created: false }
+    }
+
+    throw new Error(`Failed to create customer for ${normEmail}: ${insertErr?.message ?? retryErr?.message}`)
   }
 
   return { customerId: inserted.id, created: true }

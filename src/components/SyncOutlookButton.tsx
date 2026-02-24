@@ -7,6 +7,8 @@ interface SyncStats {
   emails_fetched: number
   interview_invites_found: number
   enrollment_invites_found: number
+  smart_interview_detected: number
+  smart_enrollment_detected: number
   emails_stored: number
   pending_changes_created: number
   already_at_or_past: number
@@ -97,6 +99,11 @@ export function SyncOutlookButton() {
                     {result.enrollment_invites_found > 0 && (
                       <p className="text-xs">
                         {result.enrollment_invites_found} enrolment invite{result.enrollment_invites_found !== 1 ? 's' : ''}
+                      </p>
+                    )}
+                    {(result.smart_interview_detected > 0 || result.smart_enrollment_detected > 0) && (
+                      <p className="text-xs text-amber-600 dark:text-amber-400">
+                        {(result.smart_interview_detected || 0) + (result.smart_enrollment_detected || 0)} smart-detected
                       </p>
                     )}
                     {result.pending_changes_created > 0 && (
