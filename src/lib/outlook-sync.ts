@@ -50,6 +50,7 @@ export type SyncResult = {
   interview_invites: SyncCategoryResult
   enrollment_invites: SyncCategoryResult
   interview_rejections: SyncCategoryResult
+  interview_reminders: SyncCategoryResult
 }
 
 function emptyCategoryResult(totalEmails: number): SyncCategoryResult {
@@ -213,6 +214,59 @@ export async function syncInterviewRejections(
       result.matched++
       const emailId = await upsertEmail(email, customer.id, 'interview_rejection')
       await createPendingChange(customer, 'interview_rejected', result, recipientEmail, email, emailId)
+    } catch (err) {
+      result.errors.push(`${recipientEmail}: ${String(err)}`)
+    }
+  }
+
+  return result
+}
+
+/**
+ * Process interview reminder emails — store emails only, no funnel changes.
+ * Reminders don't advance the funnel; they just need to be recorded so
+ * the dashboard can show how many times a customer has been reminded.
+ */
+export async function syncInterviewReminders(
+  emails: EmailMatch[]
+): Promise<SyncCategoryResult> {
+  const result = emptyCategoryResult(emails.length)
+
+  for (const email of emails) {
+    const recipientEmail = email.recipientEmail.toLowerCase()
+    try {
+      // Find customer by email
+      const { data: customer, error: custErr } = await supabase
+        .from('customers')
+        .select('id, email, funnel_status')
+        .eq('email', recipientEmail)
+        .single()
+
+      if (custErr || !customer) {
+        // Try matching via cohort_applications
+        const { data: app } = await supabase
+          .from('cohort_applications')
+          .select('customer_id')
+          .eq('email', recipientEmail)
+          .not('customer_id', 'is', null)
+          .limit(1)
+          .single()
+
+        if (!app?.customer_id) {
+          result.no_customer_found++
+          result.details.push({ email: recipientEmail, action: 'no_customer_found' })
+          continue
+        }
+
+        result.matched++
+        await upsertEmail(email, app.customer_id, 'interview_reminder')
+        result.details.push({ email: recipientEmail, action: 'stored_reminder' })
+        continue
+      }
+
+      result.matched++
+      await upsertEmail(email, customer.id, 'interview_reminder')
+      result.details.push({ email: recipientEmail, action: 'stored_reminder' })
     } catch (err) {
       result.errors.push(`${recipientEmail}: ${String(err)}`)
     }

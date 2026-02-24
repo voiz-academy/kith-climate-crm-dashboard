@@ -146,6 +146,25 @@ export default async function FunnelPage({ searchParams }: PageProps) {
       }
     })
 
+  // Bookings by customer (most recent non-cancelled booking)
+  const bookingsByCustomer = new Map<string, InterviewBooking>()
+  filteredBookings
+    .filter(b => !b.cancelled_at)
+    .forEach(b => {
+      const existing = bookingsByCustomer.get(b.customer_id)
+      if (!existing || b.created_at > existing.created_at) {
+        bookingsByCustomer.set(b.customer_id, b)
+      }
+    })
+
+  // Interview reminder email counts by customer
+  const reminderCountsByCustomer = new Map<string, number>()
+  filteredEmails
+    .filter(e => e.email_type === 'interview_reminder' && e.direction === 'outbound')
+    .forEach(e => {
+      reminderCountsByCustomer.set(e.customer_id, (reminderCountsByCustomer.get(e.customer_id) || 0) + 1)
+    })
+
   // Serialize data for the metrics component (only the fields it needs)
   const metricsApplications = filteredApplications.map(a => ({ created_at: a.created_at }))
   const metricsBookings = filteredBookings.map(b => ({
@@ -216,6 +235,8 @@ export default async function FunnelPage({ searchParams }: PageProps) {
             interviewInvitesByCustomer={Object.fromEntries(interviewInvitesByCustomer)}
             enrolInvitesByCustomer={Object.fromEntries(enrolInvitesByCustomer)}
             paymentsByCustomer={Object.fromEntries(paymentsByCustomer)}
+            bookingsByCustomer={Object.fromEntries(bookingsByCustomer)}
+            reminderCountsByCustomer={Object.fromEntries(reminderCountsByCustomer)}
           />
         </div>
 

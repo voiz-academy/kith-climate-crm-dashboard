@@ -20,6 +20,7 @@ import {
   syncInterviewInvites,
   syncEnrollmentInvites,
   syncInterviewRejections,
+  syncInterviewReminders,
   type EmailMatch,
   type SyncResult,
 } from '@/lib/outlook-sync'
@@ -36,10 +37,11 @@ export const POST = withLogging(
       const interviewEmails: EmailMatch[] = body.interview_invites ?? []
       const enrollmentEmails: EmailMatch[] = body.enrollment_invites ?? []
       const rejectionEmails: EmailMatch[] = body.interview_rejections ?? []
+      const reminderEmails: EmailMatch[] = body.interview_reminders ?? []
 
-      if (interviewEmails.length === 0 && enrollmentEmails.length === 0 && rejectionEmails.length === 0) {
+      if (interviewEmails.length === 0 && enrollmentEmails.length === 0 && rejectionEmails.length === 0 && reminderEmails.length === 0) {
         return NextResponse.json(
-          { error: 'No email data provided. Send interview_invites, enrollment_invites, and/or interview_rejections arrays.' },
+          { error: 'No email data provided. Send interview_invites, enrollment_invites, interview_rejections, and/or interview_reminders arrays.' },
           { status: 400 }
         )
       }
@@ -48,6 +50,7 @@ export const POST = withLogging(
         interview_invites: await syncInterviewInvites(interviewEmails),
         enrollment_invites: await syncEnrollmentInvites(enrollmentEmails),
         interview_rejections: await syncInterviewRejections(rejectionEmails),
+        interview_reminders: await syncInterviewReminders(reminderEmails),
       }
 
       console.log('Outlook sync complete:', JSON.stringify({
@@ -68,6 +71,11 @@ export const POST = withLogging(
           pending_changes: result.interview_rejections.pending_changes,
           already_at_or_past: result.interview_rejections.already_at_or_past,
           errors: result.interview_rejections.errors.length,
+        },
+        reminders: {
+          total: result.interview_reminders.total_emails,
+          matched: result.interview_reminders.matched,
+          errors: result.interview_reminders.errors.length,
         },
       }))
 

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import {
-  Customer, CohortApplication, Interview, Email, Payment,
+  Customer, CohortApplication, Interview, InterviewBooking, Email, Payment,
   FunnelStatus, FUNNEL_LABELS,
 } from '@/lib/supabase'
 
@@ -13,6 +13,8 @@ interface FunnelCRMProps {
   interviewInvitesByCustomer: Record<string, Email>
   enrolInvitesByCustomer: Record<string, Email>
   paymentsByCustomer: Record<string, Payment>
+  bookingsByCustomer: Record<string, InterviewBooking>
+  reminderCountsByCustomer: Record<string, number>
 }
 
 /** Ordered funnel stages with their associated rejection/side statuses */
@@ -76,6 +78,8 @@ export function FunnelCRM({
   interviewInvitesByCustomer,
   enrolInvitesByCustomer,
   paymentsByCustomer,
+  bookingsByCustomer,
+  reminderCountsByCustomer,
 }: FunnelCRMProps) {
   const [expandedSides, setExpandedSides] = useState<Set<FunnelStatus>>(new Set())
   const [actionLoading, setActionLoading] = useState<string | null>(null)
@@ -166,10 +170,10 @@ export function FunnelCRM({
   function renderStageColumns(stage: FunnelStatus): string[] {
     switch (stage) {
       case 'applied': return ['Applied On', 'Role', 'UTM Source', 'Actions']
-      case 'invited_to_interview': return ['Invite Sent', 'Company']
-      case 'booked': return ['Company', 'Title', 'Actions']
+      case 'invited_to_interview': return ['Invite Sent', 'Company', 'Reminded']
+      case 'booked': return ['Scheduled', 'Status', 'Actions']
       case 'interviewed': return ['Interviewed On', 'Outcome', 'Interviewer', 'Actions']
-      case 'invited_to_enrol': return ['Invite Sent', 'Company']
+      case 'invited_to_enrol': return ['Invite Sent', 'Deadline', 'Company']
       case 'enrolled': return ['Paid On', 'Amount', 'Product']
       default: return ['Company', 'Title']
     }
@@ -204,6 +208,7 @@ export function FunnelCRM({
       }
       case 'invited_to_interview': {
         const invite = interviewInvitesByCustomer[customer.id]
+        const reminderCount = reminderCountsByCustomer[customer.id] || 0
         return (
           <>
             <td className="px-4 py-2.5 whitespace-nowrap text-sm text-[var(--color-text-secondary)]">
@@ -212,17 +217,40 @@ export function FunnelCRM({
             <td className="px-4 py-2.5 text-sm text-[var(--color-text-secondary)] max-w-[180px] truncate">
               {customer.linkedin_company || customer.company_domain || '-'}
             </td>
+            <td className="px-4 py-2.5 whitespace-nowrap text-sm text-center">
+              {reminderCount > 0 ? (
+                <span className="px-2 py-0.5 text-xs font-medium rounded bg-[rgba(234,179,8,0.15)] text-[#EAB308]">
+                  {reminderCount}
+                </span>
+              ) : (
+                <span className="text-[var(--color-text-muted)]">0</span>
+              )}
+            </td>
           </>
         )
       }
-      case 'booked':
+      case 'booked': {
+        const booking = bookingsByCustomer[customer.id]
+        const scheduledDate = booking?.scheduled_at ? new Date(booking.scheduled_at) : null
+        const isOverdue = scheduledDate ? scheduledDate < new Date() : false
         return (
           <>
-            <td className="px-4 py-2.5 text-sm text-[var(--color-text-secondary)] max-w-[180px] truncate">
-              {customer.linkedin_company || customer.company_domain || '-'}
+            <td className="px-4 py-2.5 whitespace-nowrap text-sm">
+              <div className="flex items-center gap-2">
+                {scheduledDate && (
+                  <span className={`inline-block w-2 h-2 rounded-full flex-shrink-0 ${isOverdue ? 'bg-[#EF4444]' : 'bg-[#22C55E]'}`} />
+                )}
+                <span className="text-[var(--color-text-secondary)]">{formatDate(booking?.scheduled_at)}</span>
+              </div>
             </td>
-            <td className="px-4 py-2.5 text-sm text-[var(--color-text-secondary)] max-w-[180px] truncate">
-              {customer.linkedin_title || '-'}
+            <td className="px-4 py-2.5 whitespace-nowrap text-sm">
+              {isOverdue ? (
+                <span className="text-xs font-medium text-[#EF4444]">Needs update</span>
+              ) : scheduledDate ? (
+                <span className="text-xs font-medium text-[#22C55E]">Upcoming</span>
+              ) : (
+                <span className="text-[var(--color-text-muted)]">-</span>
+              )}
             </td>
             <td className="px-4 py-2.5 whitespace-nowrap">
               <button
@@ -235,6 +263,7 @@ export function FunnelCRM({
             </td>
           </>
         )
+      }
       case 'interviewed': {
         const interview = interviewsByCustomer[customer.id]
         return (
@@ -268,10 +297,23 @@ export function FunnelCRM({
       }
       case 'invited_to_enrol': {
         const invite = enrolInvitesByCustomer[customer.id]
+        const inviteDate = invite?.sent_at ? new Date(invite.sent_at) : null
+        const deadline = inviteDate ? new Date(inviteDate.getTime() + 7 * 24 * 60 * 60 * 1000) : null
+        const isPastDeadline = deadline ? new Date() > deadline : false
         return (
           <>
             <td className="px-4 py-2.5 whitespace-nowrap text-sm text-[var(--color-text-secondary)]">
               {formatDate(invite?.sent_at)}
+            </td>
+            <td className="px-4 py-2.5 whitespace-nowrap text-sm">
+              <div className="flex items-center gap-2">
+                {deadline && (
+                  <span className={`inline-block w-2 h-2 rounded-full flex-shrink-0 ${isPastDeadline ? 'bg-[#EF4444]' : 'bg-[#22C55E]'}`} />
+                )}
+                <span className={isPastDeadline ? 'text-[#EF4444]' : 'text-[var(--color-text-secondary)]'}>
+                  {deadline ? formatDate(deadline.toISOString()) : '-'}
+                </span>
+              </div>
             </td>
             <td className="px-4 py-2.5 text-sm text-[var(--color-text-secondary)] max-w-[180px] truncate">
               {customer.linkedin_company || customer.company_domain || '-'}
