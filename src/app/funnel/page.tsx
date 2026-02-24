@@ -1,31 +1,22 @@
 import {
-  fetchAll, getSupabase, Customer, CohortApplication, Interview, Email, Payment,
+  fetchAll, getSupabase, Customer, CohortApplication, Interview, InterviewBooking, Email, Payment,
   FUNNEL_LABELS, SIDE_STATUSES, getCustomerCohortStatus,
   type FunnelStatus, type CohortFilter
 } from '@/lib/supabase'
 import { Header } from '@/components/Header'
-import { StatCard } from '@/components/StatCard'
-import { FunnelChart } from '@/components/FunnelChart'
-import { FunnelStageDetail } from '@/components/FunnelStageDetail'
+import { FunnelMetrics } from '@/components/FunnelMetrics'
+import { FunnelCRM } from '@/components/FunnelCRM'
 import { PendingChangesButton } from '@/components/PendingChangesButton'
 import { PendingInterviewsButton } from '@/components/PendingInterviewsButton'
 import { AddInterviewButton } from '@/components/AddInterviewButton'
 import { CohortSelector } from '@/components/CohortSelector'
 
-/** The 5 funnel stages we display (no 'registered') */
-const ACTIVE_FUNNEL_STAGES: FunnelStatus[] = [
-  'applied',
-  'invited_to_interview',
-  'interviewed',
-  'invited_to_enrol',
-  'enrolled',
-]
-
 async function getFunnelData() {
-  const [customers, applications, interviews, emails, payments] = await Promise.all([
+  const [customers, applications, interviews, bookings, emails, payments] = await Promise.all([
     fetchAll<Customer>('customers'),
     fetchAll<CohortApplication>('cohort_applications'),
     fetchAll<Interview>('interviews'),
+    fetchAll<InterviewBooking>('interviews_booked'),
     fetchAll<Email>('emails'),
     fetchAll<Payment>('payments'),
   ])
@@ -54,7 +45,7 @@ async function getFunnelData() {
     // Non-critical — if count fails, button just won't show
   }
 
-  return { customers, applications, interviews, emails, payments, pendingCount, pendingInterviewsCount }
+  return { customers, applications, interviews, bookings, emails, payments, pendingCount, pendingInterviewsCount }
 }
 
 export const dynamic = 'force-dynamic'
@@ -68,11 +59,9 @@ export default async function FunnelPage({ searchParams }: PageProps) {
   const selectedCohort = (params.cohort ?? 'all') as CohortFilter
   const isFiltered = selectedCohort !== 'all'
 
-  const { customers, applications, interviews, emails, payments, pendingCount, pendingInterviewsCount } = await getFunnelData()
+  const { customers, applications, interviews, bookings, emails, payments, pendingCount, pendingInterviewsCount } = await getFunnelData()
 
   // When a specific cohort is selected, map customers to their cohort-specific status.
-  // Customers without a cohort_statuses entry for this cohort are excluded (they
-  // aren't part of this cohort). When 'all', use funnel_status as-is.
   let effectiveCustomers: Customer[]
 
   if (isFiltered) {
@@ -96,6 +85,9 @@ export default async function FunnelPage({ searchParams }: PageProps) {
   const filteredInterviews = isFiltered
     ? interviews.filter(i => i.cohort === selectedCohort)
     : interviews
+  const filteredBookings = isFiltered
+    ? bookings.filter(b => b.cohort === selectedCohort)
+    : bookings
   const filteredEmails = isFiltered
     ? emails.filter(e => e.cohort === selectedCohort)
     : emails
@@ -107,7 +99,6 @@ export default async function FunnelPage({ searchParams }: PageProps) {
   const applicationsByCustomer = new Map<string, CohortApplication>()
   filteredApplications.forEach(a => {
     if (!a.customer_id) return
-    // Keep the latest application per customer
     const existing = applicationsByCustomer.get(a.customer_id)
     if (!existing || a.created_at > existing.created_at) {
       applicationsByCustomer.set(a.customer_id, a)
@@ -155,50 +146,21 @@ export default async function FunnelPage({ searchParams }: PageProps) {
       }
     })
 
-  // Count by funnel stage (active customers only)
-  const stageCounts = new Map<FunnelStatus, number>()
-  ;[...ACTIVE_FUNNEL_STAGES, ...SIDE_STATUSES].forEach(s => stageCounts.set(s, 0))
-  activeCustomers.forEach(c => {
-    stageCounts.set(c.funnel_status, (stageCounts.get(c.funnel_status) || 0) + 1)
-  })
-
-  // Summary stats
-  const totalActive = activeCustomers.length
-  const totalApplicants = stageCounts.get('applied') || 0
-  const totalEnrolled = stageCounts.get('enrolled') || 0
-  const totalInterviewed = (stageCounts.get('interviewed') || 0) +
-    (stageCounts.get('invited_to_enrol') || 0) +
-    (stageCounts.get('enrolled') || 0)
-
-  // Application overlap stat
-  const applicantsWithWorkshops = filteredApplications.filter(a => {
-    const customer = customers.find(c => c.id === a.customer_id)
-    return customer && customer.lead_type !== 'unknown'
-  }).length
-
-  // Chart data (only active stages)
-  const funnelData = ACTIVE_FUNNEL_STAGES.map(stage => ({
-    stage,
-    count: stageCounts.get(stage) || 0,
-    percentage: totalActive > 0
-      ? Math.round(((stageCounts.get(stage) || 0) / totalActive) * 100)
-      : 0,
+  // Serialize data for the metrics component (only the fields it needs)
+  const metricsApplications = filteredApplications.map(a => ({ created_at: a.created_at }))
+  const metricsBookings = filteredBookings.map(b => ({
+    created_at: b.created_at,
+    cancelled_at: b.cancelled_at,
   }))
-
-  const sideData = SIDE_STATUSES.map(stage => ({
-    stage,
-    count: stageCounts.get(stage) || 0,
+  const metricsInterviews = filteredInterviews.map(i => ({
+    conducted_at: i.conducted_at,
+    created_at: i.created_at,
   }))
-
-  // UTM breakdown from applications
-  const utmSources = new Map<string, number>()
-  filteredApplications.forEach(a => {
-    const source = a.utm_source || 'Direct'
-    utmSources.set(source, (utmSources.get(source) || 0) + 1)
-  })
-  const topSources = Array.from(utmSources.entries())
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5)
+  const metricsPayments = filteredPayments.map(p => ({
+    paid_at: p.paid_at,
+    created_at: p.created_at,
+    status: p.status,
+  }))
 
   return (
     <div className="min-h-screen">
@@ -229,110 +191,26 @@ export default async function FunnelPage({ searchParams }: PageProps) {
           </div>
         </div>
 
-        {/* Summary stat cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <StatCard
-            title="In Pipeline"
-            value={totalActive}
-            subtitle="Customers past registration"
-          />
-          <StatCard
-            title="Applicants"
-            value={totalApplicants}
-            subtitle={`${filteredApplications.length} total applications`}
-            accent
-          />
-          <StatCard
-            title="Interviewed"
-            value={totalInterviewed}
-            subtitle={`${applicantsWithWorkshops} also attended workshops`}
-          />
-          <StatCard
-            title="Enrolled"
-            value={totalEnrolled}
-            subtitle={totalApplicants > 0
-              ? `${((totalEnrolled / totalApplicants) * 100).toFixed(0)}% of applicants`
-              : 'No enrolments yet'
-            }
-          />
-        </div>
+        {/* Time-filtered metrics */}
+        <FunnelMetrics
+          applications={metricsApplications}
+          bookings={metricsBookings}
+          interviews={metricsInterviews}
+          payments={metricsPayments}
+        />
 
-        {/* Funnel chart */}
-        <div className="mb-8">
-          <FunnelChart data={funnelData} sideData={sideData} />
-        </div>
-
-        {/* Application insights */}
-        {filteredApplications.length > 0 && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            {/* UTM sources */}
-            <div className="kith-card p-6">
-              <h3 className="kith-label mb-4">Application Sources</h3>
-              <div className="space-y-3">
-                {topSources.map(([source, count]) => {
-                  const pct = Math.round((count / filteredApplications.length) * 100)
-                  return (
-                    <div key={source}>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className="text-[var(--color-text-secondary)]">{source}</span>
-                        <span className="text-[var(--color-text-muted)]">{count} ({pct}%)</span>
-                      </div>
-                      <div className="h-2 rounded-full bg-[var(--color-surface)] overflow-hidden">
-                        <div
-                          className="h-full bg-[#5B9A8B] rounded-full transition-all"
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* Funnel stage breakdown */}
-            <div className="kith-card p-6">
-              <h3 className="kith-label mb-4">Stage Breakdown</h3>
-              <div className="space-y-2">
-                {ACTIVE_FUNNEL_STAGES.map((stage) => {
-                  const count = stageCounts.get(stage) || 0
-                  const pct = totalActive > 0 ? Math.round((count / totalActive) * 100) : 0
-                  return (
-                    <div key={stage} className="flex items-center justify-between py-1.5">
-                      <span className="text-sm text-[var(--color-text-secondary)]">
-                        {FUNNEL_LABELS[stage]}
-                      </span>
-                      <div className="flex items-center gap-3">
-                        <div className="w-24 h-1.5 rounded-full bg-[var(--color-surface)] overflow-hidden">
-                          <div
-                            className="h-full bg-[#5B9A8B] rounded-full"
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                        <span className="text-sm font-medium text-[var(--color-text-primary)] w-12 text-right">
-                          {count}
-                        </span>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Stage detail table */}
+        {/* CRM-style funnel stages */}
         <div className="mb-8">
           <div className="mb-4">
             <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">
-              Customers by Stage
+              Pipeline
             </h2>
             <p className="text-sm text-[var(--color-text-tertiary)] mt-1">
-              Click a stage to view customers
+              All customers by funnel stage
             </p>
           </div>
-          <FunnelStageDetail
+          <FunnelCRM
             customers={activeCustomers}
-            stages={ACTIVE_FUNNEL_STAGES}
             applicationsByCustomer={Object.fromEntries(applicationsByCustomer)}
             interviewsByCustomer={Object.fromEntries(interviewsByCustomer)}
             interviewInvitesByCustomer={Object.fromEntries(interviewInvitesByCustomer)}
