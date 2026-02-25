@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kith Climate — Enrollment Invite</title>
+  <style>
+    /* Preview styling only — Outlook will use inline styles */
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: #f0f0f0;
+      margin: 0;
+      padding: 40px 0;
+    }
+  </style>
+</head>
+<body>
+
+  <!--
+    TEMPLATE: enrollment_invite
+    FUNNEL TRIGGER: invited_to_enrol
+    SUBJECT: You're in — enroll within 5 days to confirm your spot
+
+    PERSONALISATION PLACEHOLDERS:
+    - {first_name}
+    - {enrollment_deadline}
+
+    LINKS TO CONFIGURE:
+    - Stripe payment URL (3 places)
+    - PD reimbursement guide PDF URL
+    - PD reimbursement request PDF URL
+  -->
+
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background: #f0f0f0;">
+    <tr>
+      <td align="center" style="padding: 0;">
+        <table width="640" cellpadding="0" cellspacing="0" border="0" style="background: #ffffff; border-radius: 4px; margin: 0 auto;">
+
+          <!-- Logo -->
+          <tr>
+            <td style="padding: 36px 40px 0 40px;">
+              <img src="https://kithclimate.com/kith-climate-wordmark-dark.png" alt="Kith Climate" width="180" style="display: block; height: auto; border: 0;">
+            </td>
+          </tr>
+
+          <!-- Teal accent line -->
+          <tr>
+            <td style="padding: 20px 40px 0 40px;">
+              <div style="height: 2px; background-color: #5B9A8B; width: 100%;"></div>
+            </td>
+          </tr>
+
+          <!-- Greeting & acceptance -->
+          <tr>
+            <td style="padding: 32px 40px 0 40px; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 15px; line-height: 1.65; color: #1a1a1a;">
+              <p style="margin: 0 0 20px 0;">Hi {first_name},</p>
+
+              <p style="margin: 0 0 20px 0;">I'm pleased to let you know that you've been accepted to the <strong>March 16 Kith Climate cohort</strong>.</p>
+
+              <p style="margin: 0 0 20px 0;">We select for people who are already leaning into AI within climate work, whether that's experimenting with tools on their own, pushing their teams to adopt new approaches, or simply being willing to figure things out when the path isn't clear yet. That's what came through in your interview, and it's exactly the kind of energy that makes these cohorts work.</p>
+
+              <p style="margin: 0 0 20px 0;">The climate community needs more professionals pioneering AI. You'll be doing that alongside a small group of people who share that same commitment towards action.</p>
+
+              <p style="margin: 0 0 0 0;">Your slot is reserved for <strong>5 business days (by {enrollment_deadline})</strong>. We run rolling admissions with limited spots, so we ask that you enroll within that window. If you're pursuing employer reimbursement and need more time, please let us know and we'll work with you on a solution.</p>
+            </td>
+          </tr>
+
+          <!-- Divider -->
+          <tr>
+            <td style="padding: 28px 40px 0 40px;">
+              <div style="height: 1px; background-color: #e5e5e5; width: 100%;"></div>
+            </td>
+          </tr>
+
+          <!-- Program Details heading -->
+          <tr>
+            <td style="padding: 28px 40px 16px 40px; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 18px; font-weight: 600; color: #1a1a1a; letter-spacing: -0.01em;">
+              Program Details
+            </td>
+          </tr>
+
+          <!-- Program details table -->
+          <tr>
+            <td style="padding: 0 40px;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px;">
+                <tr>
+                  <td style="padding: 10px 12px; border-bottom: 1px solid #f0f0f0; color: #1a1a1a; font-weight: 600; width: 130px; vertical-align: top;">Dates</td>
+                  <td style="padding: 10px 12px; border-bottom: 1px solid #f0f0f0; color: #4a4f57;">March 16 &ndash; April 24, 2026 (6 weeks)</td>
+                </tr>
+                <tr>
+                  <td style="padding: 10px 12px; border-bottom: 1px solid #f0f0f0; color: #1a1a1a; font-weight: 600; vertical-align: top;">Time</td>
+                  <td style="padding: 10px 12px; border-bottom: 1px solid #f0f0f0; color: #4a4f57;">5&ndash;7 hours/week</td>
+                </tr>
+                <tr>
+                  <td style="padding: 10px 12px; border-bottom: 1px solid #f0f0f0; color: #1a1a1a; font-weight: 600; vertical-align: top;">Live sessions</td>
+                  <td style="padding: 10px 12px; border-bottom: 1px solid #f0f0f0; color: #4a4f57;">Mondays at 12pm ET (60-min workshop) &middot; Wednesdays (office hours) &middot; Fridays at 12pm ET (90-min demo day)</td>
+                </tr>
+                <tr>
+                  <td style="padding: 10px 12px; border-bottom: 1px solid #f0f0f0; color: #1a1a1a; font-weight: 600; vertical-align: top;">Cohort size</td>
+                  <td style="padding: 10px 12px; border-bottom: 1px solid #f0f0f0; color: #4a4f57;">25 max</td>
+                </tr>
+                <tr>
+                  <td style="padding: 10px 12px; color: #1a1a1a; font-weight: 600; vertical-align: top;">Investment</td>
+                  <td style="padding: 10px 12px; color: #4a4f57;">$2,450 USD*</td>
+                </tr>
+              </table>
+              <p style="font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 12px; color: #7a7f87; margin: 8px 0 0 12px; line-height: 1.5;">*The program requires a subscription to Claude, plus additional Anthropic costs above a base usage limit</p>
+            </td>
+          </tr>
+
+          <!-- Divider -->
+          <tr>
+            <td style="padding: 28px 40px 0 40px;">
+              <div style="height: 1px; background-color: #e5e5e5; width: 100%;"></div>
+            </td>
+          </tr>
+
+          <!-- Enroll Now -->
+          <tr>
+            <td style="padding: 28px 40px 0 40px; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+              <div style="font-size: 18px; font-weight: 600; color: #1a1a1a; letter-spacing: -0.01em; margin-bottom: 18px;">Enroll Now</div>
+
+              <!-- CTA Button -->
+              <table cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 18px;">
+                <tr>
+                  <td style="background-color: #5B9A8B; border-radius: 6px; padding: 0;">
+                    <a href="https://buy.stripe.com/6oUcN51MOaitgQz4ExgjC3d" style="display: inline-block; padding: 14px 32px; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 15px; font-weight: 600; color: #ffffff; text-decoration: none; letter-spacing: -0.01em;">Enroll &amp; Pay &mdash; $2,450 &rarr;</a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="font-size: 13px; color: #7a7f87; margin: 0; line-height: 1.55;">Payment confirms your spot. No refunds or deferrals after the cohort starts. You may cancel up to 10 days prior to the start for a 50% refund.</p>
+            </td>
+          </tr>
+
+          <!-- Divider -->
+          <tr>
+            <td style="padding: 28px 40px 0 40px;">
+              <div style="height: 1px; background-color: #e5e5e5; width: 100%;"></div>
+            </td>
+          </tr>
+
+          <!-- PD Funds -->
+          <tr>
+            <td style="padding: 28px 40px 0 40px; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 15px; line-height: 1.65; color: #4a4f57;">
+              <div style="font-size: 18px; font-weight: 600; color: #1a1a1a; letter-spacing: -0.01em; margin-bottom: 14px;">Using Employer PD Funds</div>
+
+              <p style="margin: 0 0 16px 0;">Most professionals have access to professional development or tuition reimbursement funds through their employer &mdash; and most of those funds go unused.</p>
+
+              <p style="margin: 0 0 12px 0;">We've built two documents to make the process easy:</p>
+
+              <table cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 16px;">
+                <tr>
+                  <td style="padding: 0 0 8px 0; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px;">
+                    <strong style="color: #1a1a1a;">1.</strong>&nbsp;&nbsp;<a href="https://kithclimate.com/kith-climate-pd-reimbursement-guide-v1.pdf" style="color: #5B9A8B; text-decoration: none; font-weight: 600;">Professional Development Reimbursement Guide &rarr;</a><br>
+                    <span style="color: #7a7f87; font-size: 13px; padding-left: 22px; display: inline-block;">Step-by-step walkthrough for applying for PD funds</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 0 0 0 0; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px;">
+                    <strong style="color: #1a1a1a;">2.</strong>&nbsp;&nbsp;<a href="https://kithclimate.com/kith-climate-pd-reimbursement-request-v1.pdf" style="color: #5B9A8B; text-decoration: none; font-weight: 600;">Reimbursement Request &rarr;</a><br>
+                    <span style="color: #7a7f87; font-size: 13px; padding-left: 22px; display: inline-block;">HR-ready document you can submit directly to your manager or L&amp;D team</span>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin: 0;">If you need any assistance, please reach out to <a href="mailto:ben@kithailab.com" style="color: #5B9A8B; text-decoration: none; font-weight: 600;">ben@kithailab.com</a>.</p>
+            </td>
+          </tr>
+
+          <!-- Divider -->
+          <tr>
+            <td style="padding: 28px 40px 0 40px;">
+              <div style="height: 1px; background-color: #e5e5e5; width: 100%;"></div>
+            </td>
+          </tr>
+
+          <!-- What Happens Next -->
+          <tr>
+            <td style="padding: 28px 40px 0 40px; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 15px; line-height: 1.65; color: #4a4f57;">
+              <div style="font-size: 18px; font-weight: 600; color: #1a1a1a; letter-spacing: -0.01em; margin-bottom: 14px;">What Happens Next</div>
+
+              <table cellpadding="0" cellspacing="0" border="0" style="font-size: 14px; line-height: 1.6;">
+                <tr>
+                  <td style="padding: 4px 12px 4px 0; vertical-align: top; color: #5B9A8B; font-weight: 700;">1.</td>
+                  <td style="padding: 4px 0; color: #4a4f57;"><strong style="color: #1a1a1a;">Enroll</strong> using the link above by <strong style="color: #1a1a1a;">{enrollment_deadline}</strong> (or reach out if you need more time for PD approval)</td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px 12px 4px 0; vertical-align: top; color: #5B9A8B; font-weight: 700;">2.</td>
+                  <td style="padding: 4px 0; color: #4a4f57;"><strong style="color: #1a1a1a;">Check your inbox</strong> &mdash; you'll receive onboarding details and platform access before March 16</td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px 12px 4px 0; vertical-align: top; color: #5B9A8B; font-weight: 700;">3.</td>
+                  <td style="padding: 4px 0; color: #4a4f57;"><strong style="color: #1a1a1a;">Block your calendar</strong> &mdash; Mondays and Fridays at 12pm ET, starting March 16</td>
+                </tr>
+              </table>
+
+              <p style="margin: 20px 0 0 0;">If you have questions before enrolling, just reply to this email.</p>
+            </td>
+          </tr>
+
+          <!-- Sign-off -->
+          <tr>
+            <td style="padding: 32px 40px 0 40px; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 15px; line-height: 1.65; color: #1a1a1a;">
+              <p style="margin: 0 0 20px 0;">Looking forward to having you in the cohort.</p>
+              <p style="margin: 0; font-weight: 600;">{interviewer_name}</p>
+              <p style="margin: 0; color: #4a4f57; font-size: 13px;">{interviewer_title}, Kith Climate</p>
+              <p style="margin: 0; font-size: 13px;"><a href="mailto:{interviewer_email}" style="color: #5B9A8B; text-decoration: none;">{interviewer_email}</a>&nbsp;&nbsp;&middot;&nbsp;&nbsp;<a href="https://kithclimate.com" style="color: #5B9A8B; text-decoration: none;">kithclimate.com</a></p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 32px 40px 36px 40px;">
+              <div style="height: 1px; background-color: #e5e5e5; width: 100%; margin-bottom: 16px;"></div>
+              <p style="font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 11px; color: #7a7f87; margin: 0; text-align: center;">Kith Climate &middot; Part of Kith AI Lab &middot; <a href="https://kithclimate.com" style="color: #7a7f87; text-decoration: none;">kithclimate.com</a></p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>

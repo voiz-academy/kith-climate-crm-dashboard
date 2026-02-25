@@ -1,0 +1,16 @@
+<svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="gridGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="1.5" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <!-- All quadrants lit - portfolio / full artifact collection (teal for Climate) -->
+  <rect x="7" y="26" width="16" height="16" fill="#5B9A8B" filter="url(#gridGlow)"/>
+  <rect x="25" y="26" width="16" height="16" fill="#5B9A8B" filter="url(#gridGlow)"/>
+  <rect x="7" y="6" width="16" height="16" fill="#5B9A8B" filter="url(#gridGlow)"/>
+  <rect x="25" y="6" width="16" height="16" fill="#5B9A8B" filter="url(#gridGlow)"/>
+</svg>

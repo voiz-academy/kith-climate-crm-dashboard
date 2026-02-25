@@ -18,14 +18,18 @@ function parseCSV(content) {
   return lines.slice(1).filter(l => l.trim()).map(line => {
     const values = line.split(',');
     const obj = {};
-    headers.forEach((h, i) => obj[h.trim()] = (values[i] || '').trim());
+    headers.forEach((h, i) => {
+      obj[h.trim()] = (values[i] || '').replace(/^"+|"+$/g, '').trim();
+    });
     return obj;
   });
 }
 
 function parseName(fullName) {
   if (!fullName) return { first: '', last: '' };
-  const parts = fullName.trim().split(/\s+/);
+  // Remove quotes and clean up
+  const clean = fullName.replace(/"/g, '').trim();
+  const parts = clean.split(/\s+/);
   if (parts.length === 1) return { first: parts[0], last: '' };
   return { first: parts[0], last: parts.slice(1).join(' ') };
 }

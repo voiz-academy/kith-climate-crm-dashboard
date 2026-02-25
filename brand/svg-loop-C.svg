@@ -1,0 +1,51 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="tealGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <!-- Concentric squares, slightly offset - layers of refinement -->
+
+  <!-- Outer square -->
+  <rect
+    x="8" y="8"
+    width="48" height="48"
+    stroke="#5B9A8B"
+    stroke-width="1.5"
+    fill="none"
+    opacity="0.4"
+    filter="url(#tealGlow)"
+  />
+
+  <!-- Middle square - offset down-right -->
+  <rect
+    x="16" y="16"
+    width="36" height="36"
+    stroke="#5B9A8B"
+    stroke-width="1.5"
+    fill="none"
+    opacity="0.6"
+    filter="url(#tealGlow)"
+  />
+
+  <!-- Inner square - offset further -->
+  <rect
+    x="24" y="24"
+    width="24" height="24"
+    stroke="#5B9A8B"
+    stroke-width="1.5"
+    fill="none"
+    opacity="0.8"
+    filter="url(#tealGlow)"
+  />
+
+  <!-- Core square - solid -->
+  <rect
+    x="30" y="30"
+    width="12" height="12"
+    fill="#5B9A8B"
+    filter="url(#tealGlow)"
+  />
+</svg>

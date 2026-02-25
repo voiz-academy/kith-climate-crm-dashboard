@@ -17,6 +17,7 @@
 import { NextResponse } from 'next/server'
 import { getSupabase, FUNNEL_RANK } from '@/lib/supabase'
 import { withLogging } from '@/lib/log-invocation'
+import { triggerEmailAutomation } from '@/lib/email-automation'
 
 export const dynamic = 'force-dynamic'
 
@@ -175,6 +176,16 @@ export const POST = withLogging(
             updated_at: new Date().toISOString(),
           })
           .eq('id', id)
+
+        // Trigger email automations for this funnel change (fire-and-forget)
+        triggerEmailAutomation({
+          customer_id: change.customer_id,
+          new_status: change.proposed_status,
+          old_status: change.current_status,
+          cohort: cohort || undefined,
+        }).catch((err) => {
+          console.error(`Automation trigger failed for ${change.customer_id}:`, err)
+        })
 
         results.push({
           id,

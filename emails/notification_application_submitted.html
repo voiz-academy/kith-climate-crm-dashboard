@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kith Climate — New Application Submitted</title>
+  <style>
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: #f0f0f0;
+      margin: 0;
+      padding: 40px 0;
+    }
+  </style>
+</head>
+<body>
+
+  <!--
+    TEMPLATE: notification_application_submitted
+    TYPE: Internal notification (not customer-facing)
+    FUNNEL TRIGGER: applied (new row in cohort_applications)
+    SUBJECT: New application — {first_name} {last_name}
+    FROM: contactus@kithclimate.com
+    TO: ben@kithailab.com, diego@kithailab.com
+
+    PERSONALISATION PLACEHOLDERS:
+    - {first_name}
+    - {last_name}
+    - {email}
+    - {company}
+
+    APPLICATION DATA PLACEHOLDERS:
+    - {application_role} — applicant's current role
+    - {application_background} — background / experience
+    - {application_ai_view} — how they view AI
+    - {application_goals} — what they want from the program
+    - {application_budget_confirmed} — yes/no
+    - {application_date} — when the application was submitted
+    - {utm_source} — acquisition source
+    - {utm_medium} — acquisition medium
+    - {utm_campaign} — acquisition campaign
+  -->
+
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background: #f0f0f0;">
+    <tr>
+      <td align="center" style="padding: 0;">
+        <table width="640" cellpadding="0" cellspacing="0" border="0" style="background: #ffffff; border-radius: 4px; margin: 0 auto;">
+
+          <!-- Logo -->
+          <tr>
+            <td style="padding: 36px 40px 0 40px;">
+              <img src="https://kithclimate.com/kith-climate-wordmark-dark.png" alt="Kith Climate" width="180" style="display: block; height: auto; border: 0;">
+            </td>
+          </tr>
+
+          <!-- Teal accent line -->
+          <tr>
+            <td style="padding: 20px 40px 0 40px;">
+              <div style="height: 2px; background-color: #5B9A8B; width: 100%;"></div>
+            </td>
+          </tr>
+
+          <!-- Header -->
+          <tr>
+            <td style="padding: 32px 40px 0 40px; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+              <div style="font-size: 20px; font-weight: 700; color: #1a1a1a; letter-spacing: -0.01em; margin-bottom: 8px;">New Application Received</div>
+              <p style="font-size: 14px; color: #7a7f87; margin: 0;">Submitted {application_date}</p>
+            </td>
+          </tr>
+
+          <!-- Divider -->
+          <tr>
+            <td style="padding: 24px 40px 0 40px;">
+              <div style="height: 1px; background-color: #e5e5e5; width: 100%;"></div>
+            </td>
+          </tr>
+
+          <!-- Applicant Info -->
+          <tr>
+            <td style="padding: 24px 40px 0 40px; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+              <div style="font-size: 16px; font-weight: 600; color: #1a1a1a; letter-spacing: -0.01em; margin-bottom: 14px;">Applicant</div>
+
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="font-size: 14px;">
+                <tr>
+                  <td style="padding: 8px 12px; border-bottom: 1px solid #f0f0f0; color: #7a7f87; width: 120px; vertical-align: top;">Name</td>
+                  <td style="padding: 8px 12px; border-bottom: 1px solid #f0f0f0; color: #1a1a1a; font-weight: 600;">{first_name} {last_name}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 12px; border-bottom: 1px solid #f0f0f0; color: #7a7f87; vertical-align: top;">Email</td>
+                  <td style="padding: 8px 12px; border-bottom: 1px solid #f0f0f0; color: #1a1a1a;"><a href="mailto:{email}" style="color: #5B9A8B; text-decoration: none;">{email}</a></td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 12px; border-bottom: 1px solid #f0f0f0; color: #7a7f87; vertical-align: top;">Company</td>
+                  <td style="padding: 8px 12px; border-bottom: 1px solid #f0f0f0; color: #1a1a1a;">{company}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 12px; color: #7a7f87; vertical-align: top;">Budget</td>
+                  <td style="padding: 8px 12px; color: #1a1a1a;">{application_budget_confirmed}</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Divider -->
+          <tr>
+            <td style="padding: 24px 40px 0 40px;">
+              <div style="height: 1px; background-color: #e5e5e5; width: 100%;"></div>
+            </td>
+          </tr>
+
+          <!-- Application Responses -->
+          <tr>
+            <td style="padding: 24px 40px 0 40px; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+              <div style="font-size: 16px; font-weight: 600; color: #1a1a1a; letter-spacing: -0.01em; margin-bottom: 14px;">Application Responses</div>
+
+              <!-- Role -->
+              <div style="margin-bottom: 18px;">
+                <div style="font-size: 12px; font-weight: 600; color: #7a7f87; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px;">Current Role</div>
+                <div style="font-size: 14px; color: #1a1a1a; line-height: 1.55; background: #f8f8f8; border-radius: 4px; padding: 12px; border-left: 3px solid #5B9A8B;">{application_role}</div>
+              </div>
+
+              <!-- Background -->
+              <div style="margin-bottom: 18px;">
+                <div style="font-size: 12px; font-weight: 600; color: #7a7f87; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px;">Background</div>
+                <div style="font-size: 14px; color: #1a1a1a; line-height: 1.55; background: #f8f8f8; border-radius: 4px; padding: 12px; border-left: 3px solid #5B9A8B;">{application_background}</div>
+              </div>
+
+              <!-- AI View -->
+              <div style="margin-bottom: 18px;">
+                <div style="font-size: 12px; font-weight: 600; color: #7a7f87; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px;">View on AI</div>
+                <div style="font-size: 14px; color: #1a1a1a; line-height: 1.55; background: #f8f8f8; border-radius: 4px; padding: 12px; border-left: 3px solid #5B9A8B;">{application_ai_view}</div>
+              </div>
+
+              <!-- Goals -->
+              <div style="margin-bottom: 0;">
+                <div style="font-size: 12px; font-weight: 600; color: #7a7f87; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px;">Goals</div>
+                <div style="font-size: 14px; color: #1a1a1a; line-height: 1.55; background: #f8f8f8; border-radius: 4px; padding: 12px; border-left: 3px solid #5B9A8B;">{application_goals}</div>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Divider -->
+          <tr>
+            <td style="padding: 24px 40px 0 40px;">
+              <div style="height: 1px; background-color: #e5e5e5; width: 100%;"></div>
+            </td>
+          </tr>
+
+          <!-- UTM / Source -->
+          <tr>
+            <td style="padding: 24px 40px 0 40px; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+              <div style="font-size: 16px; font-weight: 600; color: #1a1a1a; letter-spacing: -0.01em; margin-bottom: 14px;">Acquisition</div>
+
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="font-size: 13px;">
+                <tr>
+                  <td style="padding: 6px 12px; border-bottom: 1px solid #f0f0f0; color: #7a7f87; width: 100px;">Source</td>
+                  <td style="padding: 6px 12px; border-bottom: 1px solid #f0f0f0; color: #4a4f57;">{utm_source}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 6px 12px; border-bottom: 1px solid #f0f0f0; color: #7a7f87;">Medium</td>
+                  <td style="padding: 6px 12px; border-bottom: 1px solid #f0f0f0; color: #4a4f57;">{utm_medium}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 6px 12px; color: #7a7f87;">Campaign</td>
+                  <td style="padding: 6px 12px; color: #4a4f57;">{utm_campaign}</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- CTA -->
+          <tr>
+            <td style="padding: 28px 40px 0 40px; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+              <table cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="background-color: #5B9A8B; border-radius: 6px; padding: 0;">
+                    <a href="https://crm.kithclimate.com/funnel" style="display: inline-block; padding: 12px 28px; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; font-weight: 600; color: #ffffff; text-decoration: none; letter-spacing: -0.01em;">View in CRM &rarr;</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 32px 40px 36px 40px;">
+              <div style="height: 1px; background-color: #e5e5e5; width: 100%; margin-bottom: 16px;"></div>
+              <p style="font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 11px; color: #7a7f87; margin: 0; text-align: center;">Kith Climate CRM &middot; Internal Notification</p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>

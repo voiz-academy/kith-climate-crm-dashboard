@@ -42,14 +42,18 @@ function parseCSV(content) {
     values.push(current.trim());
 
     const obj = {};
-    headers.forEach((h, i) => obj[h] = values[i] || '');
+    headers.forEach((h, i) => {
+      // Strip any remaining quotes that slipped through CSV parsing
+      obj[h] = (values[i] || '').replace(/^"+|"+$/g, '').trim();
+    });
     return obj;
   });
 }
 
 function parseName(fullName) {
   if (!fullName) return { first: '', last: '' };
-  const clean = fullName.replace(/[^\w\s'-]/g, '').trim();
+  // Remove quotes first, then clean non-name characters (preserve accented chars)
+  const clean = fullName.replace(/"/g, '').replace(/[^\p{L}\s'-]/gu, '').trim();
   const parts = clean.split(/\s+/);
   if (parts.length === 1) return { first: parts[0], last: '' };
   return { first: parts[0], last: parts.slice(1).join(' ') };

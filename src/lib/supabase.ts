@@ -240,6 +240,17 @@ export type Payment = {
   updated_at: string
 }
 
+export type EmailStatus =
+  | 'draft'
+  | 'queued'
+  | 'sent'
+  | 'delivered'
+  | 'opened'
+  | 'clicked'
+  | 'bounced'
+  | 'complained'
+  | 'failed'
+
 export type Email = {
   id: string
   customer_id: string
@@ -256,6 +267,70 @@ export type Email = {
   importance: string
   conversation_id: string | null
   cohort: string | null
+  // Resend tracking fields
+  resend_email_id: string | null
+  status: EmailStatus | null
+  delivered_at: string | null
+  opened_at: string | null
+  first_opened_at: string | null
+  last_opened_at: string | null
+  open_count: number
+  clicked_at: string | null
+  first_clicked_at: string | null
+  last_clicked_at: string | null
+  click_count: number
+  bounced_at: string | null
+  complained_at: string | null
+  error_message: string | null
+  template_id: string | null
+  unsubscribe_token: string | null
+  sent_via: 'outlook' | 'resend' | null
+  created_at: string
+  updated_at: string
+}
+
+export type EmailTemplate = {
+  id: string
+  name: string
+  subject: string
+  preview_text: string | null
+  content: string
+  template_type: 'transactional' | 'marketing'
+  funnel_trigger: string | null
+  from_address: string | null
+  reply_to: string | null
+  cc_addresses: string[] | null
+  is_active: 'active' | 'partial' | 'inactive'
+  created_at: string
+  updated_at: string
+}
+
+export type PendingEmail = {
+  id: string
+  customer_id: string
+  template_id: string
+  trigger_event: string
+  trigger_detail: Record<string, unknown> | null
+  status: 'pending' | 'approved' | 'rejected'
+  reviewed_at: string | null
+  reviewed_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type EmailAutomationStep = {
+  delay_hours: number
+  template_id: string
+  conditions?: Record<string, unknown>
+}
+
+export type EmailAutomation = {
+  id: string
+  name: string
+  description: string | null
+  trigger_event: string
+  is_active: boolean
+  email_flow: EmailAutomationStep[]
   created_at: string
   updated_at: string
 }

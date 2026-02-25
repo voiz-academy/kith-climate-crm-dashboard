@@ -62,6 +62,28 @@ export function FunnelStageDetail({
   const [selectedStage, setSelectedStage] = useState<FunnelStatus>('applied')
   const [actionLoading, setActionLoading] = useState<string | null>(null)
 
+  async function handleInviteToInterview(customerId: string) {
+    if (!window.confirm('Invite this applicant to interview? This will send them an interview invite email.')) return
+    setActionLoading(customerId)
+    try {
+      const res = await fetch('/api/customers/invite-to-interview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customer_id: customerId }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        alert(`Failed to invite to interview: ${data.error || 'Unknown error'}`)
+        return
+      }
+      window.location.reload()
+    } catch (err) {
+      alert(`Failed to invite to interview: ${String(err)}`)
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
   async function handleRejectApplication(customerId: string) {
     if (!window.confirm('Are you sure you want to reject this application?')) return
     setActionLoading(customerId)
@@ -179,13 +201,22 @@ export function FunnelStageDetail({
                 )}
                 {selectedStage === 'applied' && (
                   <td className="px-6 py-3 whitespace-nowrap">
-                    <button
-                      onClick={() => handleRejectApplication(customer.id)}
-                      disabled={actionLoading === customer.id}
-                      className="px-2 py-1 text-xs font-medium rounded border transition-colors text-[#EF4444] border-[rgba(239,68,68,0.3)] hover:bg-[rgba(239,68,68,0.1)] disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {actionLoading === customer.id ? 'Rejecting...' : '\u2715 Reject'}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleInviteToInterview(customer.id)}
+                        disabled={actionLoading === customer.id}
+                        className="px-2 py-1 text-xs font-medium rounded border transition-colors text-[#22C55E] border-[rgba(34,197,94,0.3)] hover:bg-[rgba(34,197,94,0.1)] disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {actionLoading === customer.id ? '...' : '\u2709 Invite'}
+                      </button>
+                      <button
+                        onClick={() => handleRejectApplication(customer.id)}
+                        disabled={actionLoading === customer.id}
+                        className="px-2 py-1 text-xs font-medium rounded border transition-colors text-[#EF4444] border-[rgba(239,68,68,0.3)] hover:bg-[rgba(239,68,68,0.1)] disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {actionLoading === customer.id ? '...' : '\u2715 Reject'}
+                      </button>
+                    </div>
                   </td>
                 )}
                 {selectedStage === 'booked' && (

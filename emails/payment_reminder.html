@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kith Climate — Payment Reminder</title>
+  <style>
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: #f0f0f0;
+      margin: 0;
+      padding: 40px 0;
+    }
+  </style>
+</head>
+<body>
+
+  <!--
+    TEMPLATE: payment_reminder
+    FUNNEL TRIGGER: manual (no auto-trigger)
+    SUBJECT: Your enrollment deadline is approaching — {enrollment_deadline}
+
+    PERSONALISATION PLACEHOLDERS:
+    - {first_name}
+    - {enrollment_deadline}
+
+    LINKS TO CONFIGURE:
+    - Stripe payment URL (2 places)
+    - PD reimbursement guide PDF URL
+    - PD reimbursement request PDF URL
+  -->
+
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background: #f0f0f0;">
+    <tr>
+      <td align="center" style="padding: 0;">
+        <table width="640" cellpadding="0" cellspacing="0" border="0" style="background: #ffffff; border-radius: 4px; margin: 0 auto;">
+
+          <!-- Logo -->
+          <tr>
+            <td style="padding: 36px 40px 0 40px;">
+              <img src="https://kithclimate.com/kith-climate-wordmark-dark.png" alt="Kith Climate" width="180" style="display: block; height: auto; border: 0;">
+            </td>
+          </tr>
+
+          <!-- Teal accent line -->
+          <tr>
+            <td style="padding: 20px 40px 0 40px;">
+              <div style="height: 2px; background-color: #5B9A8B; width: 100%;"></div>
+            </td>
+          </tr>
+
+          <!-- Greeting -->
+          <tr>
+            <td style="padding: 32px 40px 0 40px; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 15px; line-height: 1.65; color: #1a1a1a;">
+              <p style="margin: 0 0 20px 0;">Hi {first_name},</p>
+
+              <p style="margin: 0 0 20px 0;">Quick reminder that your enrollment deadline for the <strong>March 16 Kith Climate cohort</strong> is <strong>{enrollment_deadline}</strong>.</p>
+
+              <p style="margin: 0 0 0 0;">Your spot is still reserved, but we do have a waitlist. If you're planning to enroll, please complete your payment before the deadline so we can confirm your place.</p>
+            </td>
+          </tr>
+
+          <!-- Divider -->
+          <tr>
+            <td style="padding: 28px 40px 0 40px;">
+              <div style="height: 1px; background-color: #e5e5e5; width: 100%;"></div>
+            </td>
+          </tr>
+
+          <!-- Enroll Now -->
+          <tr>
+            <td style="padding: 28px 40px 0 40px; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+              <div style="font-size: 18px; font-weight: 600; color: #1a1a1a; letter-spacing: -0.01em; margin-bottom: 18px;">Complete Your Enrollment</div>
+
+              <!-- CTA Button -->
+              <table cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 18px;">
+                <tr>
+                  <td style="background-color: #5B9A8B; border-radius: 6px; padding: 0;">
+                    <a href="https://buy.stripe.com/6oUcN51MOaitgQz4ExgjC3d" style="display: inline-block; padding: 14px 32px; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 15px; font-weight: 600; color: #ffffff; text-decoration: none; letter-spacing: -0.01em;">Enroll &amp; Pay &mdash; $2,450 &rarr;</a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="font-size: 13px; color: #7a7f87; margin: 0; line-height: 1.55;">Payment confirms your spot. Deadline: <strong style="color: #4a4f57;">{enrollment_deadline}</strong></p>
+            </td>
+          </tr>
+
+          <!-- Divider -->
+          <tr>
+            <td style="padding: 28px 40px 0 40px;">
+              <div style="height: 1px; background-color: #e5e5e5; width: 100%;"></div>
+            </td>
+          </tr>
+
+          <!-- Need More Time -->
+          <tr>
+            <td style="padding: 28px 40px 0 40px; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 15px; line-height: 1.65; color: #4a4f57;">
+              <div style="font-size: 18px; font-weight: 600; color: #1a1a1a; letter-spacing: -0.01em; margin-bottom: 14px;">Need More Time?</div>
+
+              <p style="margin: 0 0 16px 0;">If you're waiting on employer reimbursement approval, let us know. We can work with you on timing &mdash; we just need to hear from you before the deadline.</p>
+
+              <p style="margin: 0 0 12px 0;">Employer PD resources if you need them:</p>
+
+              <table cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 16px;">
+                <tr>
+                  <td style="padding: 0 0 8px 0; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px;">
+                    &bull;&nbsp;&nbsp;<a href="https://kithclimate.com/kith-climate-pd-reimbursement-guide-v1.pdf" style="color: #5B9A8B; text-decoration: none; font-weight: 600;">PD Reimbursement Guide &rarr;</a>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 0 0 0 0; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px;">
+                    &bull;&nbsp;&nbsp;<a href="https://kithclimate.com/kith-climate-pd-reimbursement-request-v1.pdf" style="color: #5B9A8B; text-decoration: none; font-weight: 600;">Reimbursement Request Template &rarr;</a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin: 0;">Reply to this email or reach out to <a href="mailto:ben@kithailab.com" style="color: #5B9A8B; text-decoration: none; font-weight: 600;">ben@kithailab.com</a> if you have any questions.</p>
+            </td>
+          </tr>
+
+          <!-- Sign-off -->
+          <tr>
+            <td style="padding: 32px 40px 0 40px; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 15px; line-height: 1.65; color: #1a1a1a;">
+              <p style="margin: 0; font-weight: 600;">Ben Hillier</p>
+              <p style="margin: 0; color: #4a4f57; font-size: 13px;">COO &amp; Co-Founder, Kith Climate</p>
+              <p style="margin: 0; font-size: 13px;"><a href="mailto:ben@kithailab.com" style="color: #5B9A8B; text-decoration: none;">ben@kithailab.com</a>&nbsp;&nbsp;&middot;&nbsp;&nbsp;<a href="https://kithclimate.com" style="color: #5B9A8B; text-decoration: none;">kithclimate.com</a></p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 32px 40px 36px 40px;">
+              <div style="height: 1px; background-color: #e5e5e5; width: 100%; margin-bottom: 16px;"></div>
+              <p style="font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 11px; color: #7a7f87; margin: 0; text-align: center;">Kith Climate &middot; Part of Kith AI Lab &middot; <a href="https://kithclimate.com" style="color: #7a7f87; text-decoration: none;">kithclimate.com</a></p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>

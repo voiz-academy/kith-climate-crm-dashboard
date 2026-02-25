@@ -45,14 +45,19 @@ function parseCSV(content) {
     values.push(current.trim());
 
     const obj = {};
-    headers.forEach((h, i) => obj[h] = values[i] || '');
+    headers.forEach((h, i) => {
+      // Strip any remaining quotes that slipped through CSV parsing
+      obj[h] = (values[i] || '').replace(/^"+|"+$/g, '').trim();
+    });
     return obj;
   });
 }
 
 function parseName(fullName) {
   if (!fullName) return { first: '', last: '' };
-  const parts = fullName.trim().split(/\s+/);
+  // Remove quotes and non-name characters, preserve accented chars and hyphens
+  const clean = fullName.replace(/"/g, '').trim();
+  const parts = clean.split(/\s+/);
   if (parts.length === 1) return { first: parts[0], last: '' };
   return { first: parts[0], last: parts.slice(1).join(' ') };
 }
