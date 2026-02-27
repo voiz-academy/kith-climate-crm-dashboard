@@ -10,7 +10,7 @@
 import { NextResponse } from 'next/server'
 import { getSupabase } from '@/lib/supabase'
 import { withLogging } from '@/lib/log-invocation'
-import { triggerEmailAutomation } from '@/lib/email-automation'
+// Email automation is now handled by database triggers → kith-climate-email-automation edge function
 
 export const dynamic = 'force-dynamic'
 
@@ -59,15 +59,7 @@ export const POST = withLogging(
         )
       }
 
-      // Trigger email automation (fire-and-forget)
-      triggerEmailAutomation({
-        customer_id,
-        new_status: 'invited_to_interview',
-        old_status: oldStatus,
-        cohort: cohort || undefined,
-      }).catch((err) => {
-        console.error(`Automation trigger failed for ${customer_id}:`, err)
-      })
+      // Email automation is now handled by the database trigger on customers.funnel_status
 
       return NextResponse.json({ success: true })
     } catch (error) {
