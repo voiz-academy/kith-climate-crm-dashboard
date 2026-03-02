@@ -46,6 +46,11 @@ next-env.d.ts
 # claude code local settings
 .claude/settings.local.json
 
+# PII / data files (workshop registrants, LinkedIn contacts)
+workshop-registrants/
+linkedin-followers/
+*.csv
+
 # one-off scripts, data dumps, and working files
 *.py
 *.sql

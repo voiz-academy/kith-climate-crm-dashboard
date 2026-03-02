@@ -1,0 +1,7 @@
+{
+  "repo": "voiz-academy/kith-climate-crm-dashboard",
+  "branch": "main",
+  "deploy": "cloudflare-workers",
+  "domain": "crm.kithclimate.com",
+  "status": "active"
+}
