@@ -5,6 +5,7 @@ import { EventChart } from '@/components/EventChart'
 import { LeadTableContainer } from '@/components/LeadTableContainer'
 import { Header } from '@/components/Header'
 import { EnrichmentStatus } from '@/components/EnrichmentStatus'
+import { EnrichmentQuality } from '@/components/EnrichmentQuality'
 
 async function getDashboardData() {
   const leads = await fetchAll<Customer>('customers', {
@@ -100,6 +101,11 @@ export default async function Dashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           <SegmentChart data={segmentData} title="Lead Segmentation" />
           <EventChart data={eventData} />
+        </div>
+
+        {/* Enrichment quality */}
+        <div className="mb-8">
+          <EnrichmentQuality />
         </div>
 
         {/* Leads table */}

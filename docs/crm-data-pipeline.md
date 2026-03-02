@@ -2,18 +2,19 @@
 
 Procedure for importing workshop registrants, enriching with LinkedIn data, and classifying as professional vs pivoter.
 
+> **Note:** This pipeline now has two modes: **automated** (Supabase Edge Functions + pg_cron, runs continuously) and **manual** (local Node.js scripts, for bulk operations or debugging). The automated system handles Steps 1-6 end-to-end. The manual scripts remain useful for bulk re-runs, auditing, and troubleshooting.
+
 ---
 
 ## Pipeline Overview
 
 ```
-1. EXPORT       Luma → CSV download
-2. IMPORT       CSV → Supabase (dedup by email)
-3. NAME REPAIR  Fix missing names from CSV + parse emails for last names
-4. ENRICH       LinkedIn profile search (by name) + email lookup (fallback)
-5. RE-SCRAPE    Fill missing company data from LinkedIn URLs
-6. CLASSIFY     Keyword match → professional / pivoter
-7. AUDIT        Data quality check + misclassification fix
+1. IMPORT       Luma webhook → Supabase (automated) OR CSV → Supabase (manual)
+2. NAME REPAIR  Email-based name recovery (automated in Edge Functions) OR CSV parse (manual)
+3. ENRICH       LinkedIn profile search (by name) + email lookup (fallback)
+4. RE-SCRAPE    Fill missing company data from LinkedIn URLs
+5. CLASSIFY     Keyword match → professional / pivoter
+6. AUDIT        Data quality check (manual only — no automated equivalent yet)
 ```
 
 ---
@@ -41,13 +42,46 @@ APIFY_TOKEN=apify_api_xxxxx
 
 ---
 
-## Step 1: Export from Luma
+## Automated System (Edge Functions + pg_cron)
+
+The automated system replaces manual Steps 1-5 for day-to-day operation:
+
+### `luma-webhook` (Supabase Edge Function)
+- **Trigger:** Luma sends a webhook on new registration
+- **What it does:** Parses guest name, recovers last name from email prefix (see Step 2b logic), creates/updates customer record, creates workshop registration
+- **Replaces:** Manual Steps 1 + 2 + 3b (export CSV, import, email name recovery)
+
+### `process-enrichment` (Supabase Edge Function)
+- **Trigger:** pg_cron every 5 minutes (job: `enrich-customers-batch`)
+- **What it does:** Picks up to 5 customers with `enrichment_status = 'pending'`, runs the full enrichment pipeline (name search → email lookup → re-scrape → classify), updates `enrichment_status` to `enriched`/`failed`/`skipped`
+- **Replaces:** Manual Steps 3-6 (enrich, re-scrape, classify)
+- **State machine:** `pending` → `enriching` → `enriched` | `failed` | `skipped`
+- **Throughput:** ~60 customers/hour (5 per batch × 12 batches/hour)
+- **Also performs:** Email-based name recovery before Apify calls (same logic as luma-webhook)
+
+### `fathom-webhook`, `calendly-webhook`, `stripe-kith-climate-webhook`
+These Edge Functions handle downstream funnel events (interviews, bookings, payments) and are documented in `CLAUDE.md`.
+
+### Authoritative keyword list
+The `process-enrichment` Edge Function contains the most comprehensive climate keyword list (**48 keywords**). The manual `reclassify-leads.js` script has 32 keywords. When updating keywords, update the Edge Function first, then sync to scripts.
+
+### Monitoring
+- `system_logs` table records each enrichment batch with token validation, processing results, and errors
+- Query: `SELECT * FROM kith_climate.system_logs WHERE source = 'process-enrichment' ORDER BY created_at DESC LIMIT 10`
+
+---
+
+## Manual Pipeline (Scripts)
+
+The manual pipeline is useful for bulk imports from CSV, re-runs, auditing, and when the automated system needs supplementation.
+
+### Step 1: Export from Luma (manual only)
 
 1. Go to Luma event → Guests → Export CSV
 2. Save to `Workshop Registrants/` folder
 3. Note the **actual event date** — the CSV filename timestamp may differ from the event date
 
-### CSV columns used
+#### CSV columns used
 ```
 api_id, name, first_name, last_name, email, has_joined_event, created_at
 ```
@@ -56,7 +90,7 @@ api_id, name, first_name, last_name, email, has_joined_event, created_at
 
 ---
 
-## Step 2: Import to Supabase
+## Step 2: Import to Supabase (manual)
 
 ```bash
 node scripts/import-registrants.js "<csv-filename>" <YYYY-MM-DD>
@@ -329,8 +363,17 @@ Reports:
 
 ---
 
-## Quick Reference: Full Pipeline
+## Quick Reference
 
+### Automated (normal operation)
+New registrations flow through automatically:
+1. **Luma webhook** → creates customer + registration + recovers last name from email
+2. **pg_cron** (every 5 min) → triggers `process-enrichment` for pending customers
+3. **process-enrichment** → name search → email lookup → re-scrape → classify
+
+No manual intervention needed. Monitor via `system_logs` table.
+
+### Manual pipeline (bulk imports or re-runs)
 ```bash
 # 1. Import new CSV
 node scripts/import-registrants.js "<filename>.csv" YYYY-MM-DD
@@ -338,29 +381,23 @@ node scripts/import-registrants.js "<filename>.csv" YYYY-MM-DD
 # 2. Fix names from CSV data
 node scripts/fix-names.js
 
-# 3. (Via Claude Code) Email name recovery for first-name-only leads
-#    Parse emails → update last names → enables LinkedIn search
-
-# 4. LinkedIn enrichment by name
+# 3. LinkedIn enrichment by name
 APIFY_TOKEN=xxx node scripts/linkedin-enrichment.js
 
-# 5. (Via Claude Code) Email-to-LinkedIn lookup for remaining nameless leads
-#    Actor: enrichmentlabs/linkedin-data-enrichment-api, max 5 per batch
-
-# 6. Re-scrape sparse profiles
+# 4. Re-scrape sparse profiles
 APIFY_TOKEN=xxx node scripts/rescrape-profiles.js
 
-# 7. Classify leads
+# 5. Classify leads
 node scripts/reclassify-leads.js
 
-# 8. Fix misclassifications
+# 6. Fix misclassifications
 node scripts/fix-issues.js
 
-# 9. Audit
+# 7. Audit
 node scripts/audit-data.js
 ```
 
-### Scripted one-liner (steps 2, 4, 6-9 — skips Claude Code steps)
+### Scripted one-liner (steps 2-7)
 ```bash
 node scripts/fix-names.js && \
 APIFY_TOKEN=xxx node scripts/linkedin-enrichment.js && \
@@ -414,29 +451,32 @@ node scripts/audit-data.js
 
 ### Schema
 
+> **Note:** The table was originally called `customers` but was renamed to `customers` as the system expanded beyond workshops.
+
 ```sql
-workshop_leads (
-  id                        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  email                     TEXT UNIQUE NOT NULL,
-  first_name                TEXT,
-  last_name                 TEXT,
-  company_domain            TEXT,
-  lead_type                 TEXT DEFAULT 'unknown',  -- 'professional' | 'pivoter' | 'unknown'
-  classification_confidence TEXT,                     -- 'high' | 'medium' | 'low'
-  linkedin_url              TEXT,
-  linkedin_title            TEXT,
-  linkedin_company          TEXT,
-  linkedin_headline         TEXT,
-  linkedin_industry         TEXT,
-  linkedin_location         TEXT,
-  climate_signals           JSONB,
-  created_at                TIMESTAMPTZ DEFAULT now(),
-  updated_at                TIMESTAMPTZ DEFAULT now()
+customers (
+  id                          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email                       TEXT UNIQUE NOT NULL,
+  first_name                  TEXT,
+  last_name                   TEXT,
+  company_domain              TEXT,
+  lead_type                   TEXT DEFAULT 'unknown',  -- 'professional' | 'pivoter' | 'unknown'
+  classification_confidence   TEXT,                     -- 'high' | 'medium' | 'low'
+  funnel_status               TEXT DEFAULT 'registered', -- registered -> applied -> invited_to_interview -> booked -> interviewed -> invited_to_enrol -> enrolled
+  enrichment_status           TEXT DEFAULT 'pending',    -- pending -> enriching -> enriched | failed | skipped
+  enrichment_match_confidence TEXT,                      -- 'high' | 'medium' | 'low' | 'likely_wrong'
+  linkedin_url                TEXT,
+  linkedin_title              TEXT,
+  linkedin_company            TEXT,
+  linkedin_headline           TEXT,
+  linkedin_location           TEXT,
+  created_at                  TIMESTAMPTZ DEFAULT now(),
+  updated_at                  TIMESTAMPTZ DEFAULT now()
 )
 
 workshop_registrations (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  lead_id           UUID REFERENCES kith_climate.workshop_leads(id),
+  customer_id       UUID REFERENCES kith_climate.customers(id),
   event_name        TEXT NOT NULL,
   event_date        DATE NOT NULL,
   registration_date TIMESTAMPTZ,
@@ -482,11 +522,11 @@ Check these in order:
 Default page size limit. **This silently truncates results** — aggregations on fetched data will be wrong. Use count queries instead:
 ```javascript
 // WRONG — only counts first 1000
-const { data } = await supabase.schema('kith_climate').from('workshop_leads').select('lead_type');
+const { data } = await supabase.schema('kith_climate').from('customers').select('lead_type');
 data.length; // ← capped at 1000
 
 // RIGHT — true count
-const { count } = await supabase.schema('kith_climate').from('workshop_leads')
+const { count } = await supabase.schema('kith_climate').from('customers')
   .select('*', { count: 'exact', head: true }).eq('lead_type', 'professional');
 ```
 
@@ -535,16 +575,22 @@ npm run build  # Production build
 crm-dashboard/
 ├── docs/
 │   └── crm-data-pipeline.md          ← this file
-├── scripts/
+├── supabase/functions/                 Supabase Edge Functions (automated pipeline)
+│   ├── luma-webhook/index.ts           Automated import + email name recovery
+│   ├── process-enrichment/index.ts     Automated enrich + classify (pg_cron triggered)
+│   ├── fathom-webhook/index.ts         Interview recording webhook
+│   ├── calendly-webhook/index.ts       Booking webhook
+│   └── stripe-kith-climate-webhook/    Payment webhook
+├── scripts/                            Manual pipeline scripts
 │   ├── import-registrants.js          Step 2: CSV → Supabase
 │   ├── fix-names.js                   Step 3a: Parse names from CSV
 │   ├── linkedin-enrichment.js         Step 4: Name → LinkedIn profile (sequential)
 │   ├── enrich-remaining.js            Step 4b: Name search for remaining leads (nohup-friendly)
 │   ├── enrich-email-lookup.js         Step 4c: Email → LinkedIn lookup (nohup-friendly)
 │   ├── rescrape-profiles.js           Step 5: URL → company data
-│   ├── reclassify-leads.js            Step 6: Keyword classification
+│   ├── reclassify-leads.js            Step 6: Keyword classification (32 keywords — sync from Edge Function's 48)
 │   ├── fix-issues.js                  Step 6b: Misclassification fixes
-│   └── audit-data.js                  Step 7: Quality audit
+│   └── audit-data.js                  Step 7: Quality audit (18 keywords — sync from Edge Function's 48)
 ├── Workshop Registrants/
 │   ├── *.csv                          Source CSVs from Luma exports
 │   └── *.json                         Intermediary working files (enrichment batches, parsed names)

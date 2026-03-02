@@ -54,6 +54,9 @@ next-env.d.ts
 fathom_*.json
 scripts/
 PLAN.md
+FIXES_PROPOSAL.md
 deploy.ps1
 nul
 update_transcripts.mjs
+supabase-mcp-setup-guide.html
+supabase/.temp/

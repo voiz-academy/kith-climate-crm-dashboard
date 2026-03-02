@@ -76,10 +76,12 @@ Deno.serve(async (req) => {
     const payload: Payload = await req.json()
     console.log('Email automation triggered:', JSON.stringify(payload))
 
+    const log = (msg: string) => console.log(msg)
+
     if (payload.trigger_type === 'funnel_change') {
-      await handleFunnelChange(payload)
+      await handleFunnelChange(payload, log)
     } else if (payload.trigger_type === 'application_submitted') {
-      await handleApplicationSubmitted(payload)
+      await handleApplicationSubmitted(payload, log)
     } else {
       console.error('Unknown trigger_type:', (payload as Record<string, unknown>).trigger_type)
     }
@@ -98,44 +100,55 @@ Deno.serve(async (req) => {
 
 // ── Funnel change handler ──────────────────────────────────────────────
 
-async function handleFunnelChange(payload: FunnelChangePayload) {
+async function handleFunnelChange(payload: FunnelChangePayload, log: (msg: string) => void) {
   const { customer_id, new_status, old_status } = payload
 
+  // 'applied' is handled exclusively by the application_submitted trigger
+  // to avoid duplicate emails when both triggers fire
+  if (new_status === 'applied') {
+    log(`Skipping funnel_change for 'applied' — handled by application trigger`)
+    return
+  }
+
   // Find templates matching this funnel trigger
+  log(`Looking up templates with funnel_trigger = '${new_status}'`)
   const { data: templates, error: tmplErr } = await supabase
     .from('email_templates')
     .select('id, name, subject, content, is_active, from_address, reply_to, cc_addresses')
     .eq('funnel_trigger', new_status)
 
   if (tmplErr) {
-    console.error('Error fetching templates:', tmplErr)
+    log(`Error fetching templates: ${JSON.stringify(tmplErr)}`)
     return
   }
+  log(`Templates found: ${templates?.length ?? 0} — ${templates?.map((t: Template) => `${t.name}(${t.is_active})`).join(', ')}`)
   if (!templates || templates.length === 0) return
 
   // Fetch customer
-  const customer = await getCustomer(customer_id)
+  const customer = await getCustomer(customer_id, log)
   if (!customer) return
 
   for (const template of templates as Template[]) {
-    await processTemplate(template, customer, new_status, old_status)
+    await processTemplate(template, customer, new_status, old_status, undefined, log)
   }
 }
 
 // ── Application submitted handler ──────────────────────────────────────
 
-async function handleApplicationSubmitted(payload: ApplicationSubmittedPayload) {
+async function handleApplicationSubmitted(payload: ApplicationSubmittedPayload, log: (msg: string) => void) {
   const { customer_id, email, cohort } = payload
 
   // Resolve customer
   let customer: Customer | null = null
 
   if (customer_id) {
-    customer = await getCustomer(customer_id)
+    log(`Looking up customer by ID: ${customer_id}`)
+    customer = await getCustomer(customer_id, log)
   }
 
   if (!customer && email) {
     // Look up by email
+    log(`Looking up customer by email: ${email.toLowerCase()}`)
     const { data, error } = await supabase
       .from('customers')
       .select('id, email, first_name, last_name, enrollment_deadline')
@@ -143,40 +156,43 @@ async function handleApplicationSubmitted(payload: ApplicationSubmittedPayload) 
       .maybeSingle()
 
     if (error) {
-      console.error('Error looking up customer by email:', error)
+      log(`Error looking up customer by email: ${JSON.stringify(error)}`)
       return
     }
+    log(`Customer by email lookup result: ${data ? `found (${data.id})` : 'null'}`)
     customer = data
   }
 
   if (!customer) {
-    console.warn(`No customer found for application (email: ${email}). Skipping automation.`)
+    log(`No customer found for application (email: ${email}). Skipping automation.`)
     return
   }
 
   // Find templates with funnel_trigger = 'applied'
+  log(`Looking up templates with funnel_trigger = 'applied'`)
   const { data: templates, error: tmplErr } = await supabase
     .from('email_templates')
     .select('id, name, subject, content, is_active, from_address, reply_to, cc_addresses')
     .eq('funnel_trigger', 'applied')
 
   if (tmplErr) {
-    console.error('Error fetching application templates:', tmplErr)
+    log(`Error fetching application templates: ${JSON.stringify(tmplErr)}`)
     return
   }
+  log(`Templates found: ${templates?.length ?? 0} — ${templates?.map((t: Template) => `${t.name}(${t.is_active})`).join(', ')}`)
   if (!templates || templates.length === 0) return
 
   // Get current funnel status for context
   const old_status = 'registered' // applications come from registered state
 
   for (const template of templates as Template[]) {
-    await processTemplate(template, customer, 'applied', old_status, cohort ?? undefined)
+    await processTemplate(template, customer, 'applied', old_status, cohort ?? undefined, log)
   }
 }
 
 // ── Shared logic ───────────────────────────────────────────────────────
 
-async function getCustomer(customerId: string): Promise<Customer | null> {
+async function getCustomer(customerId: string, log: (msg: string) => void): Promise<Customer | null> {
   const { data, error } = await supabase
     .from('customers')
     .select('id, email, first_name, last_name, enrollment_deadline')
@@ -184,9 +200,10 @@ async function getCustomer(customerId: string): Promise<Customer | null> {
     .single()
 
   if (error || !data) {
-    console.error('Error fetching customer:', error)
+    log(`Error fetching customer ${customerId}: ${JSON.stringify(error)}`)
     return null
   }
+  log(`Customer found: ${data.email} (${data.first_name} ${data.last_name})`)
   return data
 }
 
@@ -196,14 +213,24 @@ async function processTemplate(
   newStatus: string,
   oldStatus: string,
   cohort?: string,
+  log?: (msg: string) => void,
 ) {
-  if (template.is_active === 'inactive') return
+  const _log = log || ((msg: string) => console.log(msg))
+  _log(`Processing template ${template.name} (is_active: ${template.is_active})`)
+
+  if (template.is_active === 'inactive') {
+    _log(`Skipping ${template.name} — inactive`)
+    return
+  }
 
   if (template.is_active === 'active') {
     // Send immediately
-    await sendEmail(customer, template, newStatus, cohort)
+    _log(`Sending ${template.name} immediately to ${customer.email}`)
+    const sent = await sendEmail(customer, template, newStatus, cohort)
+    _log(`Send result for ${template.name}: ${sent ? 'success' : 'FAILED'}`)
   } else if (template.is_active === 'partial') {
     // Insert pending_emails row
+    _log(`Creating pending email for ${template.name}`)
     await createPendingEmail(customer, template, newStatus, oldStatus, cohort)
   }
 }
@@ -215,6 +242,26 @@ async function sendEmail(
   cohort?: string,
 ): Promise<boolean> {
   try {
+    // Notification templates (notification_*) are internal emails sent TO the team,
+    // not to the customer. The cc_addresses list contains the internal recipients.
+    const isNotification = template.name.startsWith('notification_')
+    const ccList = template.cc_addresses && template.cc_addresses.length > 0
+      ? template.cc_addresses
+      : undefined
+
+    let toAddress: string
+    let ccAddresses: string[] | undefined
+
+    if (isNotification && ccList && ccList.length > 0) {
+      // Send TO the first CC recipient, CC the rest
+      toAddress = ccList[0]
+      ccAddresses = ccList.length > 1 ? ccList.slice(1) : undefined
+    } else {
+      // Customer-facing email: send TO the customer, CC as configured
+      toAddress = customer.email
+      ccAddresses = ccList
+    }
+
     const resp = await fetch(`${SUPABASE_URL}/functions/v1/kith-climate-send-email`, {
       method: 'POST',
       headers: {
@@ -223,7 +270,7 @@ async function sendEmail(
         apikey: SERVICE_ROLE_KEY,
       },
       body: JSON.stringify({
-        to: customer.email,
+        to: toAddress,
         subject: template.subject,
         html_body: template.content,
         template_id: template.id,
@@ -232,20 +279,18 @@ async function sendEmail(
         cohort: cohort || undefined,
         from: template.from_address || undefined,
         reply_to: template.reply_to || undefined,
-        cc: template.cc_addresses && template.cc_addresses.length > 0
-          ? template.cc_addresses
-          : undefined,
+        cc: ccAddresses,
         mode: 'template',
       }),
     })
 
     if (!resp.ok) {
       const errBody = await resp.text()
-      console.error(`Send failed for ${customer.email} (${template.name}):`, errBody)
+      console.error(`Send failed for ${toAddress} (${template.name}):`, errBody)
       return false
     }
 
-    console.log(`Sent ${template.name} to ${customer.email}`)
+    console.log(`Sent ${template.name} to ${toAddress}${ccAddresses ? ` (cc: ${ccAddresses.join(', ')})` : ''}`)
     return true
   } catch (err) {
     console.error(`Send error for ${customer.email} (${template.name}):`, err)
