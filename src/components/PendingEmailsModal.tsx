@@ -126,12 +126,36 @@ export function PendingEmailsModal({ onClose, onUpdated }: PendingEmailsModalPro
         body: JSON.stringify({ ids }),
       })
 
-      if (res.ok) {
-        setEmails(prev => prev.filter(e => !ids.includes(e.id)))
+      const data = await res.json()
+
+      // Determine which IDs succeeded vs failed
+      const succeededIds = new Set<string>()
+      const failedMessages: string[] = []
+
+      if (data.results) {
+        for (const r of data.results) {
+          if (r.action === 'approved_and_sent' || r.action === 'rejected') {
+            succeededIds.add(r.id)
+          } else {
+            failedMessages.push(r.action)
+          }
+        }
+      } else if (res.ok) {
+        // Fallback for reject route which may not return results
+        ids.forEach(id => succeededIds.add(id))
+      }
+
+      if (succeededIds.size > 0) {
+        setEmails(prev => prev.filter(e => !succeededIds.has(e.id)))
         onUpdated?.()
+      }
+
+      if (failedMessages.length > 0) {
+        alert(`Some emails failed to send:\n${failedMessages.join('\n')}`)
       }
     } catch (err) {
       console.error(`Failed to ${action} emails:`, err)
+      alert(`Failed to ${action} emails. Check console for details.`)
     } finally {
       if (ids.length === 1) {
         setProcessing(prev => {

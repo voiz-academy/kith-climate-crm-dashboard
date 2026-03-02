@@ -6,6 +6,18 @@
  *   - 'active'   → send immediately via edge function
  *   - 'partial'  → insert pending_emails row + notify ben@kithailab.com
  *   - 'inactive' → skip
+ *
+ * TODO: Pending email approval ("Send" button) fails silently — the
+ *   kith-climate-send-email edge function call in sendEmail() returns an error
+ *   but the root cause is unknown. Logging has been added (console.log/error
+ *   prefixed with [email-automation]). To diagnose:
+ *   1. Deploy to Cloudflare: npm run cf:deploy
+ *   2. Click "Send" on a pending email in the Mailing page
+ *   3. Check Cloudflare Worker logs (wrangler tail) for the [email-automation] lines
+ *   4. The error will reveal if it's an auth issue, missing env var, edge function
+ *      error, or something else.
+ *   The approve route (api/pending-emails/approve) and PendingEmailsModal now
+ *   properly surface errors to the UI — once the send works, no further changes needed.
  */
 
 import { getSupabase } from '@/lib/supabase'
@@ -128,7 +140,10 @@ async function sendEmail({
   triggerEvent: string
 }): Promise<boolean> {
   try {
-    const resp = await fetch(`${supabaseUrl}/functions/v1/kith-climate-send-email`, {
+    const url = `${supabaseUrl}/functions/v1/kith-climate-send-email`
+    console.log(`[email-automation] Sending to ${customer.email} via ${url}`)
+
+    const resp = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -152,9 +167,18 @@ async function sendEmail({
 
     if (!resp.ok) {
       const errBody = await resp.text()
-      console.error(`Automation send failed for ${customer.email} (${template.name ?? template.id}):`, errBody)
+      console.error(`[email-automation] Send failed for ${customer.email} (${template.name ?? template.id}): status=${resp.status} body=${errBody}`)
       return false
     }
+
+    const result = await resp.json()
+    console.log(`[email-automation] Send result for ${customer.email}:`, JSON.stringify(result))
+
+    if (result.failed > 0) {
+      console.error(`[email-automation] Resend reported failures:`, result.errors)
+      return false
+    }
+
     return true
   } catch (err) {
     console.error(`Automation send error for ${customer.email} (${template.name ?? template.id}):`, err)

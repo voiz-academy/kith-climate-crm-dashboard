@@ -29,12 +29,16 @@ export const POST = withLogging(
       const supabase = getSupabase()
       const results: Array<{ id: string; action: string }> = []
 
+      let hasFailures = false
+
       for (const id of ids) {
         // Send the email
         const { success, error: sendErr } = await sendPendingEmail(id)
 
         if (!success) {
+          console.error(`[pending-emails/approve] Send failed for ${id}: ${sendErr}`)
           results.push({ id, action: `send_failed: ${sendErr}` })
+          hasFailures = true
           continue
         }
 
@@ -56,7 +60,9 @@ export const POST = withLogging(
         }
       }
 
-      return NextResponse.json({ results })
+      // Return 207 Multi-Status if some failed, so the UI knows
+      const status = hasFailures ? 207 : 200
+      return NextResponse.json({ results }, { status })
     } catch (error) {
       console.error('Approve pending emails error:', error)
       return NextResponse.json(
