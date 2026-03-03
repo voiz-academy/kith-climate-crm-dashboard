@@ -140,7 +140,7 @@ function CustomerDetailModal({
           </section>
 
           {/* LinkedIn / Professional */}
-          {(customer.linkedin_title || customer.linkedin_company || customer.linkedin_url) && (
+          {(customer.linkedin_title || customer.linkedin_company || customer.linkedin_url || application?.linkedin) && (
             <section>
               <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-3">Professional</h3>
               <div className="grid grid-cols-2 gap-x-6 gap-y-2">
@@ -153,16 +153,16 @@ function CustomerDetailModal({
                     <DetailRow label="Headline" value={customer.linkedin_headline} />
                   </div>
                 )}
-                {customer.linkedin_url && (
+                {(customer.linkedin_url || application?.linkedin) && (
                   <div className="col-span-2">
                     <DetailRow label="LinkedIn">
                       <a
-                        href={customer.linkedin_url}
+                        href={customer.linkedin_url || application?.linkedin}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-sm text-[#5B9A8B] hover:underline truncate block max-w-[400px]"
                       >
-                        {customer.linkedin_url}
+                        {customer.linkedin_url || application?.linkedin}
                       </a>
                     </DetailRow>
                   </div>

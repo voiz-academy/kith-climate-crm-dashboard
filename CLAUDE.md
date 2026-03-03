@@ -21,7 +21,15 @@ The system has two runtime environments:
 - `fathom-webhook` — Receives Fathom `new_meeting_content_ready` events, upserts interviews, advances funnel
 - `calendly-webhook` — Receives Calendly `invitee.created`/`invitee.canceled` events, manages bookings and funnel
 - `stripe-kith-climate-webhook` — Receives Stripe `checkout.session.completed`/`charge.refunded` events, manages payments and funnel
+- `kith-climate-email-automation` — DB trigger handler for funnel status changes, queues or sends automated emails
+- `kith-climate-send-email` — Sends emails via Resend, records in emails table
+- `kith-climate-pending-email-review` — Approves/rejects pending emails (called from dashboard via proxy)
 - All secrets accessed via `Deno.env.get()` from Supabase Edge Function Secrets
+
+### Architecture Principles
+- **Database mutations on RLS-protected tables must go through Supabase Edge Functions**, not Cloudflare Workers API routes. The dashboard uses the anon key (subject to RLS); edge functions use the service role key (bypasses RLS).
+- **Next.js API routes should be thin proxies** for operations that require the service role key. Pattern: fetch to `${SUPABASE_URL}/functions/v1/<function-name>` with anon key auth, forward the response. See `trigger-sync/route.ts` for the reference implementation.
+- **Never add SUPABASE_SERVICE_ROLE_KEY to Cloudflare Workers.** If a Cloudflare route needs to mutate an RLS-protected table, create or extend a Supabase edge function instead.
 
 ### Secrets
 - **Supabase Edge Function Secrets** (primary): FATHOM_API_KEY, FATHOM_API_KEY_DIEGO, FATHOM_WEBHOOK_SECRET, FATHOM_WEBHOOK_SECRET_DIEGO, STRIPE_WEBHOOK_SECRET, STRIPE_KITH_SECRET_KEY, CALENDLY_API_TOKEN

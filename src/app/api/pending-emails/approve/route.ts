@@ -1,17 +1,19 @@
 /**
  * POST /api/pending-emails/approve
  *
- * Approves pending emails and sends them via the edge function.
+ * Thin proxy to the kith-climate-pending-email-review edge function.
+ * Approves pending emails and sends them via Resend.
  *
  * Body: { ids: string[] }
  */
 
 import { NextResponse } from 'next/server'
-import { getSupabase } from '@/lib/supabase'
 import { withLogging } from '@/lib/log-invocation'
-import { sendPendingEmail } from '@/lib/email-automation'
 
 export const dynamic = 'force-dynamic'
+
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 
 export const POST = withLogging(
   { functionName: 'api/pending-emails/approve', httpMethod: 'POST' },
@@ -26,43 +28,27 @@ export const POST = withLogging(
         )
       }
 
-      const supabase = getSupabase()
-      const results: Array<{ id: string; action: string }> = []
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/kith-climate-pending-email-review`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+          apikey: SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({ action: 'approve', ids }),
+      })
 
-      let hasFailures = false
+      const data = await res.json()
 
-      for (const id of ids) {
-        // Send the email
-        const { success, error: sendErr } = await sendPendingEmail(id)
-
-        if (!success) {
-          console.error(`[pending-emails/approve] Send failed for ${id}: ${sendErr}`)
-          results.push({ id, action: `send_failed: ${sendErr}` })
-          hasFailures = true
-          continue
-        }
-
-        // Mark as approved
-        const { error: updateErr } = await supabase
-          .from('pending_emails')
-          .update({
-            status: 'approved',
-            reviewed_at: new Date().toISOString(),
-            reviewed_by: 'dashboard_user',
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', id)
-
-        if (updateErr) {
-          results.push({ id, action: `approved_but_update_failed: ${updateErr.message}` })
-        } else {
-          results.push({ id, action: 'approved_and_sent' })
-        }
+      if (!res.ok && res.status !== 207) {
+        console.error('pending-email-review edge function error:', data)
+        return NextResponse.json(
+          { error: 'Edge function failed', details: data },
+          { status: res.status }
+        )
       }
 
-      // Return 207 Multi-Status if some failed, so the UI knows
-      const status = hasFailures ? 207 : 200
-      return NextResponse.json({ results }, { status })
+      return NextResponse.json(data, { status: res.status })
     } catch (error) {
       console.error('Approve pending emails error:', error)
       return NextResponse.json(

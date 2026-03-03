@@ -32,6 +32,7 @@ export function getSupabase(): AnySupabaseClient {
   return _supabase
 }
 
+
 /** @deprecated Use getSupabase() — kept for backwards compatibility */
 export const supabase = new Proxy({} as AnySupabaseClient, {
   get(_target, prop) {
