@@ -8,11 +8,19 @@ export const dynamic = 'force-dynamic'
 async function getMailingData() {
   const supabase = getSupabase()
 
-  // Fetch all email templates
-  const { data: templates, error: templatesError } = await supabase
+  // Fetch all email templates, ordered: active → partial → inactive, then by name
+  const { data: rawTemplates, error: templatesError } = await supabase
     .from('email_templates')
     .select('id, name, subject, funnel_trigger, is_active')
     .order('name', { ascending: true })
+
+  const statusOrder: Record<string, number> = { active: 0, partial: 1, inactive: 2 }
+  const templates = (rawTemplates ?? []).sort((a, b) => {
+    const aDiff = statusOrder[a.is_active] ?? 9
+    const bDiff = statusOrder[b.is_active] ?? 9
+    if (aDiff !== bDiff) return aDiff - bDiff
+    return a.name.localeCompare(b.name)
+  })
 
   if (templatesError) {
     console.error('Failed to fetch templates:', templatesError)
@@ -31,7 +39,7 @@ async function getMailingData() {
   }
 
   return {
-    templates: templates ?? [],
+    templates,
     pendingCount,
   }
 }
