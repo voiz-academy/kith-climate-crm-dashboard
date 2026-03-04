@@ -737,9 +737,38 @@ export function FunnelCRM({
     }
   }
 
+  function sortCustomersForStage(stage: FunnelStatus, stageCustomers: Customer[]): Customer[] {
+    switch (stage) {
+      case 'invited_to_interview': {
+        return [...stageCustomers].sort((a, b) => {
+          const aDate = interviewInvitesByCustomer[a.id]?.sent_at || ''
+          const bDate = interviewInvitesByCustomer[b.id]?.sent_at || ''
+          return bDate.localeCompare(aDate) // newest first (oldest at bottom)
+        })
+      }
+      case 'booked': {
+        return [...stageCustomers].sort((a, b) => {
+          const aDate = bookingsByCustomer[a.id]?.scheduled_at || ''
+          const bDate = bookingsByCustomer[b.id]?.scheduled_at || ''
+          return aDate.localeCompare(bDate) // soonest first (furthest at bottom)
+        })
+      }
+      case 'invited_to_enrol': {
+        return [...stageCustomers].sort((a, b) => {
+          const aDate = enrolInvitesByCustomer[a.id]?.sent_at || ''
+          const bDate = enrolInvitesByCustomer[b.id]?.sent_at || ''
+          return bDate.localeCompare(aDate) // newest first (oldest at bottom)
+        })
+      }
+      default:
+        return stageCustomers
+    }
+  }
+
   function renderStageTable(stage: FunnelStatus, stageCustomers: Customer[], isSide = false) {
     const columns = renderStageColumns(stage)
     const baseColumns = ['Name', 'Email']
+    const sortedCustomers = sortCustomersForStage(stage, stageCustomers)
 
     return (
       <div className="overflow-x-auto">
@@ -755,7 +784,7 @@ export function FunnelCRM({
             </tr>
           </thead>
           <tbody>
-            {stageCustomers.map(customer => (
+            {sortedCustomers.map(customer => (
               <tr
                 key={customer.id}
                 onClick={() => setSelectedCustomer(customer)}
@@ -772,7 +801,7 @@ export function FunnelCRM({
                 {renderCustomerCells(isSide ? stage : stage, customer)}
               </tr>
             ))}
-            {stageCustomers.length === 0 && (
+            {sortedCustomers.length === 0 && (
               <tr>
                 <td colSpan={baseColumns.length + columns.length} className="px-4 py-6 text-center text-sm text-[var(--color-text-muted)]">
                   No customers at this stage
