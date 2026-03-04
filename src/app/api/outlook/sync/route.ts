@@ -58,18 +58,21 @@ export const POST = withLogging(
           total: result.interview_invites.total_emails,
           pending_changes: result.interview_invites.pending_changes,
           already_at_or_past: result.interview_invites.already_at_or_past,
+          auto_rejected: result.interview_invites.auto_rejected_emails,
           errors: result.interview_invites.errors.length,
         },
         enrollment: {
           total: result.enrollment_invites.total_emails,
           pending_changes: result.enrollment_invites.pending_changes,
           already_at_or_past: result.enrollment_invites.already_at_or_past,
+          auto_rejected: result.enrollment_invites.auto_rejected_emails,
           errors: result.enrollment_invites.errors.length,
         },
         rejection: {
           total: result.interview_rejections.total_emails,
           pending_changes: result.interview_rejections.pending_changes,
           already_at_or_past: result.interview_rejections.already_at_or_past,
+          auto_rejected: result.interview_rejections.auto_rejected_emails,
           errors: result.interview_rejections.errors.length,
         },
         reminders: {

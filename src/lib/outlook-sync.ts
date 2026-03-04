@@ -42,6 +42,7 @@ type SyncCategoryResult = {
   already_at_or_past: number
   duplicate_pending: number
   no_customer_found: number
+  auto_rejected_emails: number
   errors: string[]
   details: Array<{ email: string; action: string }>
 }
@@ -61,6 +62,7 @@ function emptyCategoryResult(totalEmails: number): SyncCategoryResult {
     already_at_or_past: 0,
     duplicate_pending: 0,
     no_customer_found: 0,
+    auto_rejected_emails: 0,
     errors: [],
     details: [],
   }
@@ -123,12 +125,14 @@ export async function syncInterviewInvites(
 
         result.matched++
         const emailId = await upsertEmail(email, linkedCustomer.id, 'invite_to_interview')
+        result.auto_rejected_emails += await autoRejectPendingEmails(linkedCustomer.id, 'invited_to_interview')
         await createPendingChange(linkedCustomer, 'invited_to_interview', result, recipientEmail, email, emailId)
         continue
       }
 
       result.matched++
       const emailId = await upsertEmail(email, customer.id, 'invite_to_interview')
+      result.auto_rejected_emails += await autoRejectPendingEmails(customer.id, 'invited_to_interview')
       await createPendingChange(customer, 'invited_to_interview', result, recipientEmail, email, emailId)
     } catch (err) {
       result.errors.push(`${recipientEmail}: ${String(err)}`)
@@ -171,6 +175,7 @@ export async function syncEnrollmentInvites(
 
       result.matched++
       const emailId = await upsertEmail(email, customer.id, 'invite_to_enrol')
+      result.auto_rejected_emails += await autoRejectPendingEmails(customer.id, 'invited_to_enrol')
       await createPendingChange(customer, 'invited_to_enrol', result, recipientEmail, email, emailId)
     } catch (err) {
       result.errors.push(`${recipientEmail}: ${String(err)}`)
@@ -213,6 +218,7 @@ export async function syncInterviewRejections(
 
       result.matched++
       const emailId = await upsertEmail(email, customer.id, 'interview_rejection')
+      result.auto_rejected_emails += await autoRejectPendingEmails(customer.id, 'interview_rejected')
       await createPendingChange(customer, 'interview_rejected', result, recipientEmail, email, emailId)
     } catch (err) {
       result.errors.push(`${recipientEmail}: ${String(err)}`)
@@ -326,6 +332,49 @@ async function upsertEmail(
     // Log but do not throw — email persistence is best-effort
     console.error(`Failed to upsert email for ${customerId}:`, err)
     return null
+  }
+}
+
+/**
+ * Auto-reject any pending automated emails for this customer that match the
+ * given trigger event. Called when Outlook sync detects a manually sent email
+ * that covers the same communication (e.g., a manual interview invite makes
+ * the automated interview invite redundant).
+ *
+ * Uses anon UPDATE directly — pending_emails RLS policy allows anon UPDATE.
+ * If that policy is ever tightened, route through kith-climate-pending-email-review instead.
+ */
+async function autoRejectPendingEmails(
+  customerId: string,
+  triggerEvent: string
+): Promise<number> {
+  try {
+    const { data, error } = await supabase
+      .from('pending_emails')
+      .update({
+        status: 'rejected',
+        reviewed_at: new Date().toISOString(),
+        reviewed_by: 'outlook_sync_auto',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('customer_id', customerId)
+      .eq('trigger_event', triggerEvent)
+      .eq('status', 'pending')
+      .select('id')
+
+    if (error) {
+      console.error(`Auto-reject pending emails failed for ${customerId} (${triggerEvent}):`, error)
+      return 0
+    }
+
+    const count = data?.length ?? 0
+    if (count > 0) {
+      console.log(`Auto-rejected ${count} pending email(s) for customer ${customerId} (trigger: ${triggerEvent})`)
+    }
+    return count
+  } catch (err) {
+    console.error(`Auto-reject pending emails error for ${customerId}:`, err)
+    return 0
   }
 }
 
