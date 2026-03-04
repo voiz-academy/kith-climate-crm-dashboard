@@ -4,8 +4,7 @@ import {
   type FunnelStatus, type CohortFilter
 } from '@/lib/supabase'
 import { Header } from '@/components/Header'
-import { FunnelMetrics } from '@/components/FunnelMetrics'
-import { FunnelCRM } from '@/components/FunnelCRM'
+import { FunnelPageClient } from '@/components/FunnelPageClient'
 import { PendingChangesButton } from '@/components/PendingChangesButton'
 import { PendingInterviewsButton } from '@/components/PendingInterviewsButton'
 import { AddInterviewButton } from '@/components/AddInterviewButton'
@@ -212,35 +211,21 @@ export default async function FunnelPage({ searchParams }: PageProps) {
           </div>
         </div>
 
-        {/* Time-filtered metrics */}
-        <FunnelMetrics
-          applications={metricsApplications}
-          bookings={metricsBookings}
-          interviews={metricsInterviews}
-          payments={metricsPayments}
+        {/* Time-filtered metrics + pipeline */}
+        <FunnelPageClient
+          metricsApplications={metricsApplications}
+          metricsBookings={metricsBookings}
+          metricsInterviews={metricsInterviews}
+          metricsPayments={metricsPayments}
+          customers={activeCustomers}
+          applicationsByCustomer={Object.fromEntries(applicationsByCustomer)}
+          interviewsByCustomer={Object.fromEntries(interviewsByCustomer)}
+          interviewInvitesByCustomer={Object.fromEntries(interviewInvitesByCustomer)}
+          enrolInvitesByCustomer={Object.fromEntries(enrolInvitesByCustomer)}
+          paymentsByCustomer={Object.fromEntries(paymentsByCustomer)}
+          bookingsByCustomer={Object.fromEntries(bookingsByCustomer)}
+          reminderCountsByCustomer={Object.fromEntries(reminderCountsByCustomer)}
         />
-
-        {/* CRM-style funnel stages */}
-        <div className="mb-8">
-          <div className="mb-4">
-            <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">
-              Pipeline
-            </h2>
-            <p className="text-sm text-[var(--color-text-tertiary)] mt-1">
-              All customers by funnel stage
-            </p>
-          </div>
-          <FunnelCRM
-            customers={activeCustomers}
-            applicationsByCustomer={Object.fromEntries(applicationsByCustomer)}
-            interviewsByCustomer={Object.fromEntries(interviewsByCustomer)}
-            interviewInvitesByCustomer={Object.fromEntries(interviewInvitesByCustomer)}
-            enrolInvitesByCustomer={Object.fromEntries(enrolInvitesByCustomer)}
-            paymentsByCustomer={Object.fromEntries(paymentsByCustomer)}
-            bookingsByCustomer={Object.fromEntries(bookingsByCustomer)}
-            reminderCountsByCustomer={Object.fromEntries(reminderCountsByCustomer)}
-          />
-        </div>
 
         {/* Footer */}
         <footer className="mt-12 pt-6 border-t border-[var(--color-border)]">
