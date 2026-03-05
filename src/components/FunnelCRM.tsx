@@ -25,7 +25,7 @@ const STAGE_SECTIONS: { stage: FunnelStatus; sideStatuses: FunnelStatus[] }[] = 
   { stage: 'invited_to_interview', sideStatuses: ['not_invited'] },
   { stage: 'booked', sideStatuses: [] },
   { stage: 'interviewed', sideStatuses: ['interview_rejected', 'no_show'] },
-  { stage: 'invited_to_enrol', sideStatuses: ['offer_expired'] },
+  { stage: 'invited_to_enrol', sideStatuses: ['offer_expired', 'requested_discount', 'deferred_next_cohort'] },
   { stage: 'enrolled', sideStatuses: [] },
 ]
 
@@ -41,6 +41,8 @@ const sideStatusColors: Record<string, string> = {
   no_show: 'text-[#D97706]',
   offer_expired: 'text-[var(--color-text-muted)]',
   not_invited: 'text-[var(--color-text-muted)]',
+  requested_discount: 'text-[#EAB308]',
+  deferred_next_cohort: 'text-[#EAB308]',
 }
 
 const stageHeaderColors: Record<string, string> = {
@@ -477,13 +479,48 @@ export function FunnelCRM({
     }
   }
 
+  async function handleEnrolAction(customerId: string, action: string) {
+    const labels: Record<string, string> = {
+      requested_discount: 'Requested Discount',
+      deferred_next_cohort: 'Deferred – Next Cohort',
+      offer_expired: 'Offer Expired',
+    }
+    const endpoints: Record<string, string> = {
+      requested_discount: '/api/customers/requested-discount',
+      deferred_next_cohort: '/api/customers/deferred-next-cohort',
+      offer_expired: '/api/customers/offer-expired',
+    }
+    const label = labels[action] || action
+    const endpoint = endpoints[action]
+    if (!endpoint) return
+    if (!window.confirm(`Move this customer to "${label}"?`)) return
+    setActionLoading(customerId)
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customer_id: customerId }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        alert(`Failed: ${data.error || 'Unknown error'}`)
+        return
+      }
+      window.location.reload()
+    } catch (err) {
+      alert(`Failed: ${String(err)}`)
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
   function renderStageColumns(stage: FunnelStatus): string[] {
     switch (stage) {
       case 'applied': return ['Applied On', 'Role', 'UTM Source', 'Actions']
       case 'invited_to_interview': return ['Invite Sent', 'Company', 'Reminded']
       case 'booked': return ['Scheduled', 'Status', 'Actions']
       case 'interviewed': return ['Interviewed On', 'Outcome', 'Data', 'Interviewer', 'Actions']
-      case 'invited_to_enrol': return ['Invite Sent', 'Deadline', 'Data', 'Company']
+      case 'invited_to_enrol': return ['Invite Sent', 'Deadline', 'Data', 'Company', 'Actions']
       case 'enrolled': return ['Paid On', 'Amount', 'Product']
       default: return ['Company', 'Title']
     }
@@ -702,6 +739,26 @@ export function FunnelCRM({
             </td>
             <td className="px-4 py-2.5 text-sm text-[var(--color-text-secondary)] max-w-[180px] truncate">
               {customer.linkedin_company || customer.company_domain || '-'}
+            </td>
+            <td className="px-4 py-2.5 whitespace-nowrap">
+              <select
+                onClick={(e) => e.stopPropagation()}
+                onChange={(e) => {
+                  const val = e.target.value
+                  if (val) {
+                    handleEnrolAction(customer.id, val)
+                    e.target.value = ''
+                  }
+                }}
+                disabled={actionLoading === customer.id}
+                className="px-2 py-1 text-xs rounded border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)] disabled:opacity-50 cursor-pointer"
+                defaultValue=""
+              >
+                <option value="" disabled>{actionLoading === customer.id ? 'Updating...' : '\u2014 Action \u2014'}</option>
+                <option value="requested_discount">Requested Discount</option>
+                <option value="deferred_next_cohort">Deferred \u2013 Next Cohort</option>
+                <option value="offer_expired">Mark Expired</option>
+              </select>
             </td>
           </>
         )

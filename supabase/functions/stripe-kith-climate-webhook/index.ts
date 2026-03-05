@@ -30,6 +30,8 @@ const FUNNEL_RANKS: Record<string, number> = {
   interview_rejected: 5,
   invited_to_enrol: 6,
   offer_expired: 6,
+  requested_discount: 6,
+  deferred_next_cohort: 6,
   enrolled: 7,
 };
 

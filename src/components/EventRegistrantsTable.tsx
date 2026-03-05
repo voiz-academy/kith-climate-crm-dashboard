@@ -36,6 +36,8 @@ const funnelBadgeColor: Record<string, string> = {
   no_show: 'bg-[rgba(220,100,100,0.12)] text-[#dc6464] border border-[rgba(220,100,100,0.25)]',
   offer_expired: 'bg-[rgba(232,230,227,0.08)] text-[var(--color-text-muted)] border border-[rgba(232,230,227,0.15)]',
   not_invited: 'bg-[rgba(232,230,227,0.05)] text-[var(--color-text-muted)] border border-[rgba(232,230,227,0.1)]',
+  requested_discount: 'bg-[rgba(234,179,8,0.12)] text-[#EAB308] border border-[rgba(234,179,8,0.25)]',
+  deferred_next_cohort: 'bg-[rgba(234,179,8,0.12)] text-[#EAB308] border border-[rgba(234,179,8,0.25)]',
 }
 
 function getCompanyDisplay(customer: Customer): string {

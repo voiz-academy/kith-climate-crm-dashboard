@@ -53,6 +53,8 @@ const FUNNEL_RANK: Record<string, number> = {
   interview_rejected: 5,
   invited_to_enrol: 6,
   offer_expired: 6,
+  requested_discount: 6,
+  deferred_next_cohort: 6,
   enrolled: 7,
 }
 
@@ -73,6 +75,9 @@ function funnelBadgeClasses(status: FunnelStatus): string {
       return 'bg-[rgba(55,111,91,0.15)] text-[#376F5B] border border-[rgba(55,111,91,0.3)]'
     case 'no_show':
       return 'bg-[rgba(217,119,6,0.15)] text-[#D97706] border border-[rgba(217,119,6,0.3)]'
+    case 'requested_discount':
+    case 'deferred_next_cohort':
+      return 'bg-[rgba(234,179,8,0.15)] text-[#EAB308] border border-[rgba(234,179,8,0.3)]'
     case 'invited_to_enrol':
       return 'bg-[rgba(46,100,79,0.15)] text-[#2E644F] border border-[rgba(46,100,79,0.3)]'
     case 'offer_expired':

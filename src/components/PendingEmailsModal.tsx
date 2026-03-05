@@ -50,6 +50,8 @@ const stageColors: Record<string, string> = {
   interview_rejected: 'bg-[rgba(239,68,68,0.15)] text-[#EF4444] border-[rgba(239,68,68,0.3)]',
   no_show: 'bg-[rgba(217,119,6,0.15)] text-[#D97706] border-[rgba(217,119,6,0.3)]',
   offer_expired: 'bg-[rgba(232,230,227,0.05)] text-[rgba(232,230,227,0.5)] border-[rgba(232,230,227,0.1)]',
+  requested_discount: 'bg-[rgba(234,179,8,0.15)] text-[#EAB308] border-[rgba(234,179,8,0.3)]',
+  deferred_next_cohort: 'bg-[rgba(234,179,8,0.15)] text-[#EAB308] border-[rgba(234,179,8,0.3)]',
 }
 
 function formatDate(dateStr: string): string {

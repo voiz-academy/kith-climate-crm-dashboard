@@ -20,6 +20,8 @@ const SIDE_COLORS: Record<string, string> = {
   no_show: '#D97706',
   offer_expired: 'rgba(232, 230, 227, 0.35)',
   not_invited: 'rgba(232, 230, 227, 0.25)',
+  requested_discount: '#EAB308',
+  deferred_next_cohort: '#EAB308',
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
