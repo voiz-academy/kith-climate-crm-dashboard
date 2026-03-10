@@ -296,9 +296,11 @@ function CustomerDetailModal({
               <div className="grid grid-cols-2 gap-x-6 gap-y-2">
                 <DetailRow label="Invited On" value={formatDate(enrolInvite.sent_at)} />
                 <DetailRow label="Deadline" value={
-                  enrolInvite.sent_at
-                    ? formatDate(new Date(new Date(enrolInvite.sent_at).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString())
-                    : '-'
+                  customer.enrollment_deadline
+                    ? formatDate(customer.enrollment_deadline)
+                    : enrolInvite.sent_at
+                      ? formatDate(new Date(new Date(enrolInvite.sent_at).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString())
+                      : '-'
                 } />
               </div>
             </section>
@@ -548,6 +550,29 @@ export function FunnelCRM({
     }
   }
 
+  async function handleSetDeadline(customerId: string, dateStr: string) {
+    setActionLoading(customerId)
+    try {
+      const res = await fetch('/api/customers/set-enrollment-deadline', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customer_id: customerId,
+          deadline: new Date(dateStr).toISOString(),
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        alert(`Failed: ${data.error || 'Unknown error'}`)
+      }
+      window.location.reload()
+    } catch (err) {
+      alert(`Failed: ${String(err)}`)
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
   function renderStageColumns(stage: FunnelStatus): string[] {
     switch (stage) {
       case 'applied': return ['Applied On', 'Role', 'UTM Source', 'Actions']
@@ -744,12 +769,16 @@ export function FunnelCRM({
       case 'invited_to_enrol': {
         const invite = enrolInvitesByCustomer[customer.id]
         const interview = interviewsByCustomer[customer.id]
+        const persistedDeadline = customer.enrollment_deadline
+          ? new Date(customer.enrollment_deadline)
+          : null
         const inviteDate = invite?.sent_at
           ? new Date(invite.sent_at)
           : customer.updated_at
             ? new Date(customer.updated_at)
             : null
-        const deadline = inviteDate ? new Date(inviteDate.getTime() + 7 * 24 * 60 * 60 * 1000) : null
+        const computedDeadline = inviteDate ? new Date(inviteDate.getTime() + 7 * 24 * 60 * 60 * 1000) : null
+        const deadline = persistedDeadline || computedDeadline
         const isPastDeadline = deadline ? new Date() > deadline : false
         const hasFathom = !!(interview?.fathom_recording_id || interview?.fathom_recording_url)
         const hasManual = !!(interview?.outcome || interview?.interviewer_notes || interview?.applicant_scoring)
@@ -763,9 +792,16 @@ export function FunnelCRM({
                 {deadline && (
                   <span className={`inline-block w-2 h-2 rounded-full flex-shrink-0 ${isPastDeadline ? 'bg-[#EF4444]' : 'bg-[#22C55E]'}`} />
                 )}
-                <span className={isPastDeadline ? 'text-[#EF4444]' : 'text-[var(--color-text-secondary)]'}>
-                  {deadline ? formatDate(deadline.toISOString()) : '-'}
-                </span>
+                <input
+                  type="date"
+                  value={deadline ? deadline.toISOString().split('T')[0] : ''}
+                  onClick={(e) => e.stopPropagation()}
+                  onChange={(e) => {
+                    if (e.target.value) handleSetDeadline(customer.id, e.target.value)
+                  }}
+                  disabled={actionLoading === customer.id}
+                  className={`px-1 py-0.5 text-xs rounded border border-[var(--color-border)] bg-[var(--color-surface)] disabled:opacity-50 ${isPastDeadline ? 'text-[#EF4444]' : 'text-[var(--color-text-secondary)]'}`}
+                />
               </div>
             </td>
             <td className="px-4 py-2.5 whitespace-nowrap">
