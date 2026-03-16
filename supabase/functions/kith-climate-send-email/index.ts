@@ -60,6 +60,46 @@ function personaliseContent(
   return out;
 }
 
+// Personalise template content with payment data
+function personalisePaymentContent(
+  content: string,
+  payment: Record<string, any>,
+): string {
+  if (!payment) return content;
+
+  let out = content;
+
+  // Format amount from cents to dollars with currency symbol
+  const amountCents = payment.amount_cents ?? payment.amount ?? 0;
+  const currency = (payment.currency || "USD").toUpperCase();
+  const symbol = currency === "USD" ? "$" : currency === "GBP" ? "£" : currency === "EUR" ? "€" : "";
+  const amountFormatted = `${symbol}${(amountCents / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+  out = out.replace(/{payment_amount}/g, amountFormatted);
+  out = out.replace(/{amount}/g, amountFormatted);
+  out = out.replace(/{payment_currency}/g, currency);
+  out = out.replace(/{payment_status}/g, payment.status || "");
+  out = out.replace(/{payment_product}/g, payment.product || payment.description || "");
+  out = out.replace(/{payment_cohort}/g, payment.cohort || "");
+
+  // Format payment date
+  if (payment.paid_at || payment.created_at) {
+    const paidDate = new Date(payment.paid_at || payment.created_at).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+    out = out.replace(/{payment_date}/g, paidDate);
+  } else {
+    out = out.replace(/{payment_date}/g, "");
+  }
+
+  out = out.replace(/{stripe_payment_intent_id}/g, payment.stripe_payment_intent_id || payment.payment_intent_id || "N/A");
+  out = out.replace(/{stripe_customer_id}/g, payment.stripe_customer_id || "N/A");
+
+  return out;
+}
+
 // Core send — calls Resend and records in kith_climate.emails
 async function sendOne(opts: {
   to: string;
@@ -103,6 +143,37 @@ async function sendOne(opts: {
     if (cc && cc.length) emailPayload.cc = cc;
 
     const res = await resend.emails.send(emailPayload as any);
+
+    // Check for Resend API errors (suppressions, validation errors, etc.)
+    // The Resend SDK v2 returns { data, error } — it does NOT throw on failures.
+    if ((res as any)?.error) {
+      const errorObj = (res as any).error;
+      const errorMsg = errorObj.message || JSON.stringify(errorObj);
+      console.error("Resend API error for", to, ":", errorMsg);
+
+      // Log as suppressed/failed in kith_climate.emails
+      const isSuppression = errorMsg.toLowerCase().includes("suppress");
+      await supabase.from("emails").insert({
+        customer_id: customerId,
+        direction: "outbound",
+        from_address: from,
+        to_addresses: [to],
+        subject,
+        email_type: emailType,
+        sent_at: new Date().toISOString(),
+        cohort,
+        status: isSuppression ? "suppressed" : "failed",
+        error_message: errorMsg,
+        template_id: templateId,
+        sent_via: "resend",
+        updated_at: new Date().toISOString(),
+      }).then(({ error }) => {
+        if (error) console.error("Failed to log Resend error:", error);
+      });
+
+      return { ok: false, error: errorMsg };
+    }
+
     const resendId = (res as any)?.data?.id ?? null;
 
     console.log("Resend response for", to, ":", resendId);
@@ -225,9 +296,27 @@ serve(async (req) => {
           customer = c;
         }
 
-        const personalised = customer
+        let personalised = customer
           ? { subject: personaliseContent(tmpl.subject, customer), html: personaliseContent(tmpl.content, customer) }
           : { subject: tmpl.subject, html: tmpl.content };
+
+        // If payment placeholders remain, fetch latest payment and personalise
+        if (custId && (personalised.subject.includes("{payment_") || personalised.html.includes("{payment_") || personalised.subject.includes("{amount}") || personalised.html.includes("{amount}") || personalised.html.includes("{stripe_"))) {
+          const { data: latestPayment } = await supabase
+            .from("payments")
+            .select("*")
+            .or(`customer_id.eq.${custId},enrollee_customer_id.eq.${custId}`)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .single();
+
+          if (latestPayment) {
+            personalised = {
+              subject: personalisePaymentContent(personalised.subject, latestPayment),
+              html: personalisePaymentContent(personalised.html, latestPayment),
+            };
+          }
+        }
 
         const res = await sendOne({
           to: recipientEmail,
