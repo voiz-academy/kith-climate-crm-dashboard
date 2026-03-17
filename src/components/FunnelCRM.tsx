@@ -22,7 +22,7 @@ interface FunnelCRMProps {
 /** Ordered funnel stages with their associated rejection/side statuses */
 const STAGE_SECTIONS: { stage: FunnelStatus; sideStatuses: FunnelStatus[] }[] = [
   { stage: 'applied', sideStatuses: ['application_rejected'] },
-  { stage: 'invited_to_interview', sideStatuses: ['not_invited'] },
+  { stage: 'invited_to_interview', sideStatuses: ['not_invited', 'interview_deferred'] },
   { stage: 'booked', sideStatuses: [] },
   { stage: 'interviewed', sideStatuses: ['interview_rejected', 'no_show'] },
   { stage: 'invited_to_enrol', sideStatuses: ['offer_expired', 'requested_discount', 'deferred_next_cohort'] },
@@ -43,6 +43,7 @@ const sideStatusColors: Record<string, string> = {
   not_invited: 'text-[var(--color-text-muted)]',
   requested_discount: 'text-[#EAB308]',
   deferred_next_cohort: 'text-[#EAB308]',
+  interview_deferred: 'text-[#EAB308]',
 }
 
 const stageHeaderColors: Record<string, string> = {
@@ -295,9 +296,11 @@ function CustomerDetailModal({
               <div className="grid grid-cols-2 gap-x-6 gap-y-2">
                 <DetailRow label="Invited On" value={formatDate(enrolInvite.sent_at)} />
                 <DetailRow label="Deadline" value={
-                  enrolInvite.sent_at
-                    ? formatDate(new Date(new Date(enrolInvite.sent_at).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString())
-                    : '-'
+                  customer.enrollment_deadline
+                    ? formatDate(customer.enrollment_deadline)
+                    : enrolInvite.sent_at
+                      ? formatDate(new Date(new Date(enrolInvite.sent_at).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString())
+                      : '-'
                 } />
               </div>
             </section>
@@ -482,7 +485,7 @@ export function FunnelCRM({
   async function handleEnrolAction(customerId: string, action: string) {
     const labels: Record<string, string> = {
       requested_discount: 'Requested Discount',
-      deferred_next_cohort: 'Deferred – Next Cohort',
+      deferred_next_cohort: 'Deferred Cohort',
       offer_expired: 'Offer Expired',
     }
     const endpoints: Record<string, string> = {
@@ -514,10 +517,66 @@ export function FunnelCRM({
     }
   }
 
+  async function handleInterviewAction(customerId: string, action: string) {
+    const labels: Record<string, string> = {
+      not_invited: 'Not Invited',
+      interview_deferred: 'Deferred (Next Cohort)',
+    }
+    const endpoints: Record<string, string> = {
+      not_invited: '/api/customers/not-invited',
+      interview_deferred: '/api/customers/interview-deferred',
+    }
+    const label = labels[action] || action
+    const endpoint = endpoints[action]
+    if (!endpoint) return
+    if (!window.confirm(`Move this customer to "${label}"?`)) return
+    setActionLoading(customerId)
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customer_id: customerId }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        alert(`Failed: ${data.error || 'Unknown error'}`)
+        return
+      }
+      window.location.reload()
+    } catch (err) {
+      alert(`Failed: ${String(err)}`)
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  async function handleSetDeadline(customerId: string, dateStr: string) {
+    setActionLoading(customerId)
+    try {
+      const res = await fetch('/api/customers/set-enrollment-deadline', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customer_id: customerId,
+          deadline: new Date(dateStr).toISOString(),
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        alert(`Failed: ${data.error || 'Unknown error'}`)
+      }
+      window.location.reload()
+    } catch (err) {
+      alert(`Failed: ${String(err)}`)
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
   function renderStageColumns(stage: FunnelStatus): string[] {
     switch (stage) {
       case 'applied': return ['Applied On', 'Role', 'UTM Source', 'Actions']
-      case 'invited_to_interview': return ['Invite Sent', 'Company', 'Reminded']
+      case 'invited_to_interview': return ['Invite Sent', 'Company', 'Reminded', 'Actions']
       case 'booked': return ['Scheduled', 'Status', 'Actions']
       case 'interviewed': return ['Interviewed On', 'Outcome', 'Data', 'Interviewer', 'Actions']
       case 'invited_to_enrol': return ['Invite Sent', 'Deadline', 'Data', 'Company', 'Actions']
@@ -581,6 +640,25 @@ export function FunnelCRM({
               ) : (
                 <span className="text-[var(--color-text-muted)]">0</span>
               )}
+            </td>
+            <td className="px-4 py-2.5 whitespace-nowrap">
+              <select
+                onClick={(e) => e.stopPropagation()}
+                onChange={(e) => {
+                  const val = e.target.value
+                  if (val) {
+                    handleInterviewAction(customer.id, val)
+                    e.target.value = ''
+                  }
+                }}
+                disabled={actionLoading === customer.id}
+                className="px-2 py-1 text-xs rounded border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)] disabled:opacity-50 cursor-pointer"
+                defaultValue=""
+              >
+                <option value="" disabled>{actionLoading === customer.id ? 'Updating...' : '\u2014 Action \u2014'}</option>
+                <option value="not_invited">Not Invited</option>
+                <option value="interview_deferred">Deferred Cohort</option>
+              </select>
             </td>
           </>
         )
@@ -691,8 +769,16 @@ export function FunnelCRM({
       case 'invited_to_enrol': {
         const invite = enrolInvitesByCustomer[customer.id]
         const interview = interviewsByCustomer[customer.id]
-        const inviteDate = invite?.sent_at ? new Date(invite.sent_at) : null
-        const deadline = inviteDate ? new Date(inviteDate.getTime() + 7 * 24 * 60 * 60 * 1000) : null
+        const persistedDeadline = customer.enrollment_deadline
+          ? new Date(customer.enrollment_deadline)
+          : null
+        const inviteDate = invite?.sent_at
+          ? new Date(invite.sent_at)
+          : customer.updated_at
+            ? new Date(customer.updated_at)
+            : null
+        const computedDeadline = inviteDate ? new Date(inviteDate.getTime() + 7 * 24 * 60 * 60 * 1000) : null
+        const deadline = persistedDeadline || computedDeadline
         const isPastDeadline = deadline ? new Date() > deadline : false
         const hasFathom = !!(interview?.fathom_recording_id || interview?.fathom_recording_url)
         const hasManual = !!(interview?.outcome || interview?.interviewer_notes || interview?.applicant_scoring)
@@ -706,9 +792,16 @@ export function FunnelCRM({
                 {deadline && (
                   <span className={`inline-block w-2 h-2 rounded-full flex-shrink-0 ${isPastDeadline ? 'bg-[#EF4444]' : 'bg-[#22C55E]'}`} />
                 )}
-                <span className={isPastDeadline ? 'text-[#EF4444]' : 'text-[var(--color-text-secondary)]'}>
-                  {deadline ? formatDate(deadline.toISOString()) : '-'}
-                </span>
+                <input
+                  type="date"
+                  value={deadline ? deadline.toISOString().split('T')[0] : ''}
+                  onClick={(e) => e.stopPropagation()}
+                  onChange={(e) => {
+                    if (e.target.value) handleSetDeadline(customer.id, e.target.value)
+                  }}
+                  disabled={actionLoading === customer.id}
+                  className={`px-1 py-0.5 text-xs rounded border border-[var(--color-border)] bg-[var(--color-surface)] disabled:opacity-50 ${isPastDeadline ? 'text-[#EF4444]' : 'text-[var(--color-text-secondary)]'}`}
+                />
               </div>
             </td>
             <td className="px-4 py-2.5 whitespace-nowrap">
@@ -756,7 +849,7 @@ export function FunnelCRM({
               >
                 <option value="" disabled>{actionLoading === customer.id ? 'Updating...' : '\u2014 Action \u2014'}</option>
                 <option value="requested_discount">Requested Discount</option>
-                <option value="deferred_next_cohort">Deferred \u2013 Next Cohort</option>
+                <option value="deferred_next_cohort">Deferred Cohort</option>
                 <option value="offer_expired">Mark Expired</option>
               </select>
             </td>
