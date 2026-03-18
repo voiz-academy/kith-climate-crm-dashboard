@@ -8,6 +8,7 @@ const navItems = [
   { href: '/funnel', label: 'Funnel' },
   { href: '/mailing', label: 'Mailing' },
   { href: '/events', label: 'Events' },
+  { href: '/community', label: 'Community' },
   { href: '/traffic', label: 'Traffic' },
   { href: '/status', label: 'Status' },
 ]

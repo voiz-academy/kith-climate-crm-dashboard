@@ -140,6 +140,8 @@ export type Customer = {
   climate_signals: Record<string, unknown> | null
   enrollment_deadline: string | null
   cohort_statuses: CohortStatuses | null
+  discord_user_id: string | null
+  discord_status: DiscordStatus | null
   created_at: string
   updated_at: string
 }
@@ -368,6 +370,23 @@ export type SystemLog = {
   metadata: Record<string, unknown>
   invoked_at: string
   created_at: string
+}
+
+export type DiscordStatus = 'not_invited' | 'invited' | 'joined' | 'roles_assigned'
+
+export type DiscordMember = {
+  id: string
+  discord_user_id: string
+  discord_username: string
+  discord_display_name: string | null
+  discord_avatar_url: string | null
+  joined_server_at: string | null
+  customer_id: string | null
+  matched_at: string | null
+  matched_by: string | null
+  roles: string[]
+  created_at: string
+  updated_at: string
 }
 
 export type PendingFunnelChange = {
