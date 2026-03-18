@@ -62,13 +62,19 @@ export function CommunityPageClient({ enrolledCustomers, discordMembers }: Props
     return name.includes(q) || c.email.toLowerCase().includes(q)
   })
 
-  // Filter unmatched by search
-  const filteredUnmatched = unmatchedMembers.filter(dm => {
-    if (!searchQuery) return true
-    const q = searchQuery.toLowerCase()
-    return dm.discord_username.toLowerCase().includes(q) ||
-      (dm.discord_display_name || '').toLowerCase().includes(q)
-  })
+  // Filter unmatched by search, sort by most recent join first
+  const filteredUnmatched = unmatchedMembers
+    .filter(dm => {
+      if (!searchQuery) return true
+      const q = searchQuery.toLowerCase()
+      return dm.discord_username.toLowerCase().includes(q) ||
+        (dm.discord_display_name || '').toLowerCase().includes(q)
+    })
+    .sort((a, b) => {
+      const aDate = a.joined_server_at || a.created_at
+      const bDate = b.joined_server_at || b.created_at
+      return new Date(bDate).getTime() - new Date(aDate).getTime()
+    })
 
   async function handleMatch(discordMemberId: string, customerId: string) {
     setSaving(true)
