@@ -16,9 +16,10 @@ async function getCommunityData() {
   ])
 
   // Filter to enrolled customers for the March 16th cohort
+  // Check both cohort-specific status AND global funnel_status to catch all enrolled
   const enrolledCustomers = allCustomers.filter(c => {
     const cohortStatus = getCustomerCohortStatus(c, MARCH_COHORT as CohortFilter)
-    return cohortStatus === 'enrolled'
+    return cohortStatus === 'enrolled' || c.funnel_status === 'enrolled'
   })
 
   return { enrolledCustomers, discordMembers }
