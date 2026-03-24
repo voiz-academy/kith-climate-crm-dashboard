@@ -10,6 +10,8 @@ import { SyncDiscordButton } from '@/components/SyncDiscordButton'
 const MARCH_COHORT = 'March 16th 2026'
 
 async function getCommunityData() {
+  const supabase = getSupabase()
+
   const [allCustomers, discordMembers] = await Promise.all([
     fetchAll<Customer>('customers'),
     fetchAll<DiscordMember>('discord_members', { orderBy: 'created_at', ascending: false }),
@@ -22,13 +24,23 @@ async function getCommunityData() {
     return cohortStatus === 'enrolled' || c.funnel_status === 'enrolled'
   })
 
-  return { enrolledCustomers, discordMembers }
+  // Fetch testimonials for the Testimonials tab
+  const { data: testimonials, error: testError } = await supabase
+    .from('testimonials')
+    .select('*')
+    .order('submitted_at', { ascending: false, nullsFirst: false })
+
+  if (testError) {
+    console.error('Failed to fetch testimonials:', testError)
+  }
+
+  return { enrolledCustomers, discordMembers, testimonials: testimonials ?? [] }
 }
 
 export const dynamic = 'force-dynamic'
 
 export default async function CommunityPage() {
-  const { enrolledCustomers, discordMembers } = await getCommunityData()
+  const { enrolledCustomers, discordMembers, testimonials } = await getCommunityData()
 
   return (
     <div className="min-h-screen">
@@ -41,7 +53,7 @@ export default async function CommunityPage() {
               Community
             </h1>
             <p className="text-sm text-[var(--color-text-tertiary)] mt-1">
-              Discord onboarding for the March 16th cohort
+              Discord onboarding and graduate testimonials
             </p>
           </div>
           <SyncDiscordButton />
@@ -50,6 +62,7 @@ export default async function CommunityPage() {
         <CommunityPageClient
           enrolledCustomers={enrolledCustomers}
           discordMembers={discordMembers}
+          testimonials={testimonials}
         />
 
         <footer className="mt-12 pt-6 border-t border-[var(--color-border)]">

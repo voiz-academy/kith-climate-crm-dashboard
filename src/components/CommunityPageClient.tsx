@@ -2,10 +2,12 @@
 
 import { useState } from 'react'
 import { Customer, DiscordMember, DiscordStatus } from '@/lib/supabase'
+import { TestimonialsTable, type Testimonial } from '@/components/TestimonialsTable'
 
 type Props = {
   enrolledCustomers: Customer[]
   discordMembers: DiscordMember[]
+  testimonials: Testimonial[]
 }
 
 const DISCORD_STATUS_LABELS: Record<DiscordStatus, string> = {
@@ -30,11 +32,18 @@ function StatusBadge({ status }: { status: DiscordStatus }) {
   )
 }
 
-export function CommunityPageClient({ enrolledCustomers, discordMembers }: Props) {
+export function CommunityPageClient({ enrolledCustomers, discordMembers, testimonials }: Props) {
   const [matchingMemberId, setMatchingMemberId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [saving, setSaving] = useState(false)
-  const [tab, setTab] = useState<'enrollees' | 'unmatched'>('enrollees')
+  const [tab, setTab] = useState<'enrollees' | 'unmatched' | 'testimonials'>('enrollees')
+
+  // Testimonial counts
+  const testimonialCounts = {
+    total: testimonials.length,
+    submitted: testimonials.filter(t => t.status === 'submitted').length,
+    approved: testimonials.filter(t => t.status === 'approved').length,
+  }
 
   // Derive data
   const matchedDiscordIds = new Set(
@@ -178,6 +187,16 @@ export function CommunityPageClient({ enrolledCustomers, discordMembers }: Props
             }`}
           >
             Unmatched Discord ({unmatchedMembers.length})
+          </button>
+          <button
+            onClick={() => setTab('testimonials')}
+            className={`px-3 py-1.5 rounded text-sm transition-colors ${
+              tab === 'testimonials'
+                ? 'bg-[rgba(91,154,139,0.15)] text-[#5B9A8B] font-medium'
+                : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
+            }`}
+          >
+            Testimonials ({testimonialCounts.total})
           </button>
         </div>
         <input
@@ -329,6 +348,48 @@ export function CommunityPageClient({ enrolledCustomers, discordMembers }: Props
               </tbody>
             </table>
           )}
+        </div>
+      )}
+
+      {/* Testimonials Tab */}
+      {tab === 'testimonials' && (
+        <div className="space-y-6">
+          {/* Testimonial summary cards */}
+          <div className="grid grid-cols-4 gap-4">
+            <div className="kith-card p-4">
+              <div className="text-xs text-[var(--color-text-tertiary)] uppercase tracking-wider">Total</div>
+              <div className="text-2xl font-semibold text-[var(--color-text-primary)] mt-1">{testimonialCounts.total}</div>
+            </div>
+            <div className="kith-card p-4">
+              <div className="text-xs text-[var(--color-text-tertiary)] uppercase tracking-wider">Awaiting Submission</div>
+              <div className="text-2xl font-semibold text-[var(--color-text-secondary)] mt-1">
+                {testimonials.filter(t => t.status === 'pending').length}
+              </div>
+            </div>
+            <div className="kith-card p-4">
+              <div className="text-xs text-[var(--color-text-tertiary)] uppercase tracking-wider">Needs Review</div>
+              <div className={`text-2xl font-semibold mt-1 ${testimonialCounts.submitted > 0 ? 'text-[#D97706]' : 'text-[var(--color-text-primary)]'}`}>
+                {testimonialCounts.submitted}
+              </div>
+            </div>
+            <div className="kith-card p-4">
+              <div className="text-xs text-[var(--color-text-tertiary)] uppercase tracking-wider">Approved</div>
+              <div className="text-2xl font-semibold text-[#5B9A8B] mt-1">{testimonialCounts.approved}</div>
+            </div>
+          </div>
+
+          {/* Testimonials table */}
+          <div className="kith-card overflow-hidden">
+            <div className="px-6 py-4 border-b border-[var(--color-border)]">
+              <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">
+                All Testimonials
+              </h2>
+              <p className="text-sm text-[var(--color-text-tertiary)] mt-1">
+                Click a row to expand and read the full testimonial
+              </p>
+            </div>
+            <TestimonialsTable testimonials={testimonials} />
+          </div>
         </div>
       )}
     </div>

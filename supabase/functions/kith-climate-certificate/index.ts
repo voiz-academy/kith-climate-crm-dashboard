@@ -486,11 +486,14 @@ function renderCertificateHtml(cert: any, _token: string): string {
   const name = `${cert.first_name} ${cert.last_name}`;
   const certificateUrl = getCertificateUrl(cert);
   const badgeImageUrl = `${SITE_DOMAIN}/images/kith-climate-badge-8week.png`;
+  const credentialDescUrl = `${SITE_DOMAIN}/credential/8-week`;
   const issuedDate = new Date(cert.issued_at).toLocaleDateString("en-US", {
     year: "numeric",
     month: "long",
     day: "numeric",
   });
+  const issuedDateObj = new Date(cert.issued_at);
+  const linkedInAddUrl = `https://www.linkedin.com/profile/add?startTask=CERTIFICATION_NAME&name=${encodeURIComponent("Kith Climate Certified Professional")}&organizationName=${encodeURIComponent("Kith Climate")}&issueYear=${issuedDateObj.getFullYear()}&issueMonth=${issuedDateObj.getMonth() + 1}&certUrl=${encodeURIComponent(certificateUrl)}&certId=${encodeURIComponent(cert.certificate_number)}`;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -863,7 +866,9 @@ function renderCertificateHtml(cert: any, _token: string): string {
 <!-- Download bar (hidden when printing) -->
 <div class="download-bar">
   <button class="download-btn" onclick="window.print()">Download Certificate (PDF)</button>
+  <a class="download-btn secondary" href="${linkedInAddUrl}" target="_blank" rel="noopener">Add to LinkedIn Profile</a>
   <a class="download-btn secondary" href="https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(certificateUrl)}" target="_blank" rel="noopener">Share on LinkedIn</a>
+  <a class="download-btn secondary" href="${credentialDescUrl}" target="_blank" rel="noopener">About This Credential</a>
 </div>
 
 <div class="certificate">
@@ -1046,12 +1051,15 @@ function renderCertificationEmail(cert: any, certificateUrl: string): string {
   const name = `${cert.first_name} ${cert.last_name}`;
   const badgeImageUrl =
     `${SITE_DOMAIN}/images/kith-climate-badge-8week.png`;
+  const credentialDescUrl = `${SITE_DOMAIN}/credential/8-week`;
   const issuedDate = new Date(cert.issued_at).toLocaleDateString("en-US", {
     year: "numeric",
     month: "long",
     day: "numeric",
   });
+  const issuedDateObj = new Date(cert.issued_at);
   const linkedInShareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(certificateUrl)}`;
+  const linkedInAddUrl = `https://www.linkedin.com/profile/add?startTask=CERTIFICATION_NAME&name=${encodeURIComponent("Kith Climate Certified Professional")}&organizationName=${encodeURIComponent("Kith Climate")}&issueYear=${issuedDateObj.getFullYear()}&issueMonth=${issuedDateObj.getMonth() + 1}&certUrl=${encodeURIComponent(certificateUrl)}&certId=${encodeURIComponent(cert.certificate_number)}`;
 
   // Build testimonial URL if a testimonial token exists
   // The handleSendEmail caller should pass the testimonial token via cert._testimonial_token
@@ -1137,8 +1145,11 @@ function renderCertificationEmail(cert: any, certificateUrl: string): string {
                     <p style="margin:0 0 12px;font-size:14px;color:rgba(232,230,227,0.7);">
                       <strong style="color:#e8e6e3;">Cohort:</strong> ${escapeHtml(cert.cohort)}
                     </p>
-                    <p style="margin:0;font-size:12px;color:rgba(232,230,227,0.35);">
+                    <p style="margin:0 0 12px;font-size:12px;color:rgba(232,230,227,0.35);">
                       Domains: Life Cycle Assessment / Supply Chain / Carbon Reduction / Climate Disclosure / Circular Economy / Sustainability Strategy
+                    </p>
+                    <p style="margin:0;font-size:12px;">
+                      <a href="${credentialDescUrl}" style="color:#5B9A8B;text-decoration:none;font-weight:500;">View full credential description &rarr;</a>
                     </p>
                   </td>
                 </tr>
@@ -1152,10 +1163,25 @@ function renderCertificationEmail(cert: any, certificateUrl: string): string {
           <tr>
             <td style="padding:0 40px 28px;">
               <p style="margin:0 0 8px;font-size:18px;font-weight:600;color:#e8e6e3;">
-                Let your network know
+                Add it to your LinkedIn
               </p>
               <p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:rgba(232,230,227,0.6);">
-                You earned this &mdash; share it. Here's a ready-to-go LinkedIn post you can copy and customize:
+                Add this credential to your LinkedIn profile so employers and connections can see it. One click &mdash; it pre-fills everything.
+              </p>
+              <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 20px;">
+                <tr>
+                  <td align="center" style="background:#5B9A8B;border-radius:8px;">
+                    <a href="${linkedInAddUrl}" target="_blank" style="display:inline-block;padding:12px 28px;font-size:14px;font-weight:600;color:#fff;text-decoration:none;letter-spacing:0.02em;">
+                      Add to LinkedIn Profile
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:0 0 8px;font-size:16px;font-weight:600;color:#e8e6e3;">
+                Share with your network
+              </p>
+              <p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:rgba(232,230,227,0.6);">
+                Here's a ready-to-go LinkedIn post you can copy and customize:
               </p>
               <!-- LinkedIn copy block -->
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:rgba(232,230,227,0.03);border-radius:8px;border:1px solid rgba(232,230,227,0.08);">
