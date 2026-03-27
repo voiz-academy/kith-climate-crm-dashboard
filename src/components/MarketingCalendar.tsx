@@ -96,7 +96,7 @@ function formatDate(dateStr: string): string {
 
 function formatWeekLabel(week: string[]): string {
   const start = new Date(week[0] + 'T00:00:00')
-  const end = new Date(week[6] + 'T00:00:00')
+  const end = new Date(week[4] + 'T00:00:00')
   const startStr = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   const endStr = start.getMonth() === end.getMonth()
     ? end.getDate().toString()
@@ -166,8 +166,8 @@ export function MarketingCalendar({ initialEvents }: { initialEvents?: Marketing
     if (!initialEvents) refreshEvents()
   }, [initialEvents, refreshEvents])
 
-  const weeks = generateWeeks('2026-03-23', 8)
-  const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+  const weeks = generateWeeks('2026-03-23', 10)
+  const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
 
   function handleAddEvent(date: string) {
     setEditingEvent(null)
@@ -271,7 +271,7 @@ export function MarketingCalendar({ initialEvents }: { initialEvents?: Marketing
                   </span>
                   <span className="block text-[10px] text-[var(--color-text-muted)]">Wk {wi + 1}</span>
                 </td>
-                {week.map(date => {
+                {week.slice(0, 5).map(date => {
                   const dayEvents = getEventsForDate(date)
                   const today = isToday(date)
                   const past = isPast(date)

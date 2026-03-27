@@ -28,7 +28,7 @@ export default async function MarketingPage() {
         <div className="mb-6">
           <h1 className="text-xl font-semibold text-[var(--color-text-primary)]">Marketing Calendar</h1>
           <p className="text-sm text-[var(--color-text-tertiary)] mt-1">
-            8-week plan — March 23 to May 17, 2026
+            10-week plan — March 23 to May 31, 2026
           </p>
         </div>
 
