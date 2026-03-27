@@ -10,6 +10,7 @@ const navItems = [
   { href: '/certifications', label: 'Certifications' },
   { href: '/events', label: 'Events' },
   { href: '/community', label: 'Community' },
+  { href: '/marketing', label: 'Marketing' },
   { href: '/traffic', label: 'Traffic' },
   { href: '/status', label: 'Status' },
 ]
