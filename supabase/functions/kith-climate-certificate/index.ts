@@ -207,7 +207,7 @@ async function handleSendEmail(body: SendEmailRequest) {
       },
       body: JSON.stringify({
         to: cert.email,
-        cc: ["ben@kithailab.com", "diego@kithailab.com"],
+        cc: ["ben@kithailab.com"],
         subject: `Congrats, ${cert.first_name} — You're Kith Climate AI-Certified`,
         html_body: emailHtml,
         email_type: "certification",
