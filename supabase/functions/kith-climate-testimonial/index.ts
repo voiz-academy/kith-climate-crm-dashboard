@@ -38,7 +38,7 @@ serve(async (req) => {
 
       const { data, error } = await supabase
         .from("testimonials")
-        .select("first_name, last_name, email, cohort, status, testimonial_text")
+        .select("first_name, last_name, email, cohort, status, testimonial_text, display_name")
         .eq("token", token)
         .single();
 
@@ -46,7 +46,11 @@ serve(async (req) => {
         return json({ error: "Invalid token" }, 404);
       }
 
-      return json(data);
+      // Return a composed name for the frontend
+      return json({
+        ...data,
+        name: data.first_name ? `${data.first_name}${data.last_name ? ' ' + data.last_name : ''}` : '',
+      });
     }
 
     // ---- POST: Submit a testimonial OR review (approve/reject) ----
@@ -93,11 +97,58 @@ serve(async (req) => {
         return json({ ok: true, testimonial_id, status });
       }
 
-      // ---- Submit action (graduate submitting their testimonial) ----
+      // ---- Open submit (no token required — public testimonial form) ----
+      if (body.action === "open_submit") {
+        const { display_name, testimonial_text, consent_to_publish, email } = body;
+
+        if (!display_name || typeof display_name !== "string" || display_name.trim().length === 0) {
+          return json({ error: "display_name is required" }, 400);
+        }
+        if (!testimonial_text || typeof testimonial_text !== "string" || testimonial_text.trim().length === 0) {
+          return json({ error: "testimonial_text is required" }, 400);
+        }
+        if (typeof consent_to_publish !== "boolean" || !consent_to_publish) {
+          return json({ error: "consent_to_publish must be true" }, 400);
+        }
+
+        // Parse display name into first/last
+        const nameParts = display_name.trim().split(/\s+/);
+        const firstName = nameParts[0];
+        const lastName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : "";
+
+        const openToken = crypto.randomUUID();
+
+        const { error: insertErr } = await supabase
+          .from("testimonials")
+          .insert({
+            token: openToken,
+            first_name: firstName,
+            last_name: lastName || "(open)",
+            email: email?.trim() || "open-submission@kithclimate.com",
+            cohort: "open",
+            display_name: display_name.trim(),
+            testimonial_text: testimonial_text.trim(),
+            consent_to_publish: true,
+            status: "submitted",
+            submitted_at: new Date().toISOString(),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          });
+
+        if (insertErr) {
+          console.error("Failed to create open testimonial:", insertErr);
+          return json({ error: "Failed to save testimonial" }, 500);
+        }
+
+        return json({ ok: true, message: "Thank you for your testimonial" });
+      }
+
+      // ---- Submit action (graduate submitting their testimonial via token) ----
       const {
         token,
         testimonial_text,
         rating,
+        display_name,
         role_at_time,
         company_at_time,
         linkedin_url,
@@ -148,6 +199,9 @@ serve(async (req) => {
 
       if (rating !== undefined && rating !== null) {
         update.rating = rating;
+      }
+      if (display_name !== undefined && display_name !== null) {
+        update.display_name = String(display_name).trim();
       }
       if (role_at_time !== undefined && role_at_time !== null) {
         update.role_at_time = String(role_at_time).trim();
