@@ -8,10 +8,37 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   db: { schema: "kith_climate" },
 });
+
+async function sendTestimonialNotification(name: string, email: string, text: string, source: "token" | "open") {
+  const label = source === "open" ? "Open Submission" : "Graduate (via token)";
+  await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: "Kith Climate <no-reply@kithclimate.com>",
+      to: ["ben@kithailab.com"],
+      subject: `New testimonial submitted — ${name}`,
+      html: `
+        <p><strong>New testimonial received</strong></p>
+        <p><strong>Name:</strong> ${name}<br>
+        <strong>Email:</strong> ${email}<br>
+        <strong>Source:</strong> ${label}</p>
+        <blockquote style="border-left:3px solid #5B9A8B;padding-left:12px;color:#444;margin:12px 0;">
+          ${text.replace(/\n/g, "<br>")}
+        </blockquote>
+        <p style="font-size:12px;color:#888;">Log in to the CRM to approve or reject.</p>
+      `,
+    }),
+  }).catch((e) => console.error("Failed to send testimonial notification:", e));
+}
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -140,6 +167,13 @@ serve(async (req) => {
           return json({ error: "Failed to save testimonial" }, 500);
         }
 
+        await sendTestimonialNotification(
+          display_name.trim(),
+          email?.trim() || "open-submission@kithclimate.com",
+          testimonial_text.trim(),
+          "open"
+        );
+
         return json({ ok: true, message: "Thank you for your testimonial" });
       }
 
@@ -177,7 +211,7 @@ serve(async (req) => {
       // Look up testimonial by token
       const { data: existing, error: lookupErr } = await supabase
         .from("testimonials")
-        .select("id, status")
+        .select("id, status, first_name, last_name, email")
         .eq("token", token)
         .single();
 
@@ -222,6 +256,15 @@ serve(async (req) => {
         console.error("Failed to update testimonial:", updateErr);
         return json({ error: "Failed to save testimonial" }, 500);
       }
+
+      const submitterName = display_name?.trim() ||
+        `${existing.first_name}${existing.last_name ? ' ' + existing.last_name : ''}`;
+      await sendTestimonialNotification(
+        submitterName,
+        existing.email,
+        testimonial_text.trim(),
+        "token"
+      );
 
       return json({ ok: true, message: "Thank you for your testimonial" });
     }
