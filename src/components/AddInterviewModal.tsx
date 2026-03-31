@@ -42,6 +42,7 @@ const OUTCOMES = [
 ]
 const COHORT_OPTIONS = [
   { value: '', label: 'No cohort' },
+  { value: 'May 18th 2026', label: 'May 18th 2026' },
   { value: 'March 16th 2026', label: 'March 16th 2026' },
 ]
 
@@ -74,7 +75,7 @@ export function AddInterviewModal({ onClose, onCreated, initialCustomer }: AddIn
   const [outcome, setOutcome] = useState('pending')
   const [outcomeReason, setOutcomeReason] = useState('')
   const [notes, setNotes] = useState('')
-  const [cohort, setCohort] = useState('March 16th 2026')
+  const [cohort, setCohort] = useState('May 18th 2026')
 
   // Fathom check state
   const [fathomCheck, setFathomCheck] = useState<FathomCheck | null>(null)

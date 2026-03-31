@@ -7,7 +7,7 @@ const stripeSecret = Deno.env.get("STRIPE_KITH_SECRET_KEY")!;
 const webhookSecret = Deno.env.get("STRIPE_KITHCLIMATE_WEBHOOK_SECRET")!;
 
 // Default cohort for all payments. Updated when a new cohort begins.
-const CURRENT_COHORT = "March 16th 2026";
+const CURRENT_COHORT = "May 18th 2026";
 
 // Full enrolment amount in cents ($1,500 USD).
 // Payments at or above this in a single checkout are treated as full

@@ -94,7 +94,7 @@ export async function POST(request: Request) {
           fathom_summary: fathom_summary || null,
           outcome: 'pending',
           activity_type: 'demo',
-          cohort: 'March 16th 2026',
+          cohort: 'May 18th 2026',
         })
         .select('id')
         .single()

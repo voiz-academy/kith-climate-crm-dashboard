@@ -98,8 +98,8 @@ export type CohortStatuses = Record<string, CohortStatusEntry>
 
 export const COHORT_OPTIONS = [
   { value: 'all', label: 'All Cohorts' },
+  { value: 'May 18th 2026', label: 'May 18th 2026' },
   { value: 'March 16th 2026', label: 'March 16th 2026' },
-  // Future cohorts added here
 ] as const
 
 export type CohortFilter = typeof COHORT_OPTIONS[number]['value']

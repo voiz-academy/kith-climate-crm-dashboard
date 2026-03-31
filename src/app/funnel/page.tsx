@@ -56,7 +56,7 @@ type PageProps = {
 
 export default async function FunnelPage({ searchParams }: PageProps) {
   const params = await searchParams
-  const selectedCohort = (params.cohort ?? 'all') as CohortFilter
+  const selectedCohort = (params.cohort ?? 'May 18th 2026') as CohortFilter
   const isFiltered = selectedCohort !== 'all'
 
   const { customers, applications, interviews, bookings, emails, payments, pendingCount, pendingInterviewsCount } = await getFunnelData()

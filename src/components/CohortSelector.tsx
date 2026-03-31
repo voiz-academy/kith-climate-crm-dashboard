@@ -6,7 +6,7 @@ import { COHORT_OPTIONS, type CohortFilter } from '@/lib/supabase'
 export function CohortSelector() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const current = (searchParams.get('cohort') ?? 'all') as CohortFilter
+  const current = (searchParams.get('cohort') ?? 'May 18th 2026') as CohortFilter
 
   function handleChange(value: string) {
     const params = new URLSearchParams(searchParams.toString())

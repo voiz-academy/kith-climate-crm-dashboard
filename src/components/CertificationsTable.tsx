@@ -34,6 +34,7 @@ const emailStatusColors: Record<string, string> = {
 const COHORT_OPTIONS = [
   { value: 'January 19th 2026', label: 'January 19th 2026' },
   { value: 'March 16th 2026', label: 'March 16th 2026' },
+  { value: 'May 18th 2026', label: 'May 18th 2026' },
 ]
 
 function formatDate(dateStr: string | null): string {
@@ -306,7 +307,7 @@ function AddCertificationModal({ onClose }: { onClose: () => void }) {
     last_name: '',
     email: '',
     company: '',
-    cohort: 'March 16th 2026',
+    cohort: 'May 18th 2026',
     program: '8-week',
   })
 

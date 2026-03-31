@@ -26,7 +26,7 @@
 import { supabase, FUNNEL_RANK, COHORT_OPTIONS } from './supabase'
 
 /** The currently active cohort — used as default when email has no cohort */
-const CURRENT_COHORT = COHORT_OPTIONS[1].value // 'March 16th 2026'
+const CURRENT_COHORT = COHORT_OPTIONS[1].value // 'May 18th 2026'
 
 export type EmailMatch = {
   recipientEmail: string
