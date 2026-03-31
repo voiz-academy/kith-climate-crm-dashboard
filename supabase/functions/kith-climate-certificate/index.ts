@@ -208,7 +208,7 @@ async function handleSendEmail(body: SendEmailRequest) {
       body: JSON.stringify({
         to: cert.email,
         cc: ["ben@kithailab.com", "diego@kithailab.com"],
-        subject: `Congratulations, ${cert.first_name} — You're Kith Climate AI-Certified`,
+        subject: `Congrats, ${cert.first_name} — You're Kith Climate AI-Certified`,
         html_body: emailHtml,
         email_type: "certification",
         cohort: cert.cohort,
@@ -1717,7 +1717,7 @@ function renderCertificationEmail(cert: any, certificateUrl: string): string {
             <td align="center" style="padding:40px 40px 24px;">
               <img src="${badgeImageUrl}" alt="Kith Climate Badge" width="120" style="display:block;margin-bottom:20px;" />
               <h1 style="margin:0;font-size:26px;font-weight:600;color:#e8e6e3;letter-spacing:0.02em;">
-                Congratulations, ${escapeHtml(cert.first_name)}.
+                Congrat&#8204;ulations, ${escapeHtml(cert.first_name)}.
               </h1>
             </td>
           </tr>
