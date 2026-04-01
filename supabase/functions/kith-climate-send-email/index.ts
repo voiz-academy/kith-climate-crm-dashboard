@@ -38,6 +38,7 @@ interface SendRequest {
 function personaliseContent(
   content: string,
   customer: Record<string, any>,
+  cohort?: string,
 ): string {
   if (!customer) return content;
 
@@ -46,7 +47,7 @@ function personaliseContent(
   out = out.replace(/{last_name}/g, customer.last_name || "");
   out = out.replace(/{email}/g, customer.email || "");
   out = out.replace(/{company}/g, customer.linkedin_company || customer.company_domain || "");
-  out = out.replace(/{cohort}/g, customer.cohort || "");
+  out = out.replace(/{cohort}/g, cohort || "");
   out = out.replace(/{enrollment_deadline}/g, customer.enrollment_deadline || "");
 
   const currentDate = new Date().toLocaleDateString("en-US", {
@@ -297,7 +298,7 @@ serve(async (req) => {
         }
 
         let personalised = customer
-          ? { subject: personaliseContent(tmpl.subject, customer), html: personaliseContent(tmpl.content, customer) }
+          ? { subject: personaliseContent(tmpl.subject, customer, cohort), html: personaliseContent(tmpl.content, customer, cohort) }
           : { subject: tmpl.subject, html: tmpl.content };
 
         // If payment placeholders remain, fetch latest payment and personalise

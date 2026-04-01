@@ -7,6 +7,7 @@ import {
 } from '@/lib/supabase'
 
 interface FunnelStageDetailProps {
+  selectedCohort?: string
   customers: Customer[]
   stages: FunnelStatus[]
   applicationsByCustomer: Record<string, CohortApplication>
@@ -53,6 +54,7 @@ function formatCurrency(cents: number, currency: string): string {
 }
 
 export function FunnelStageDetail({
+  selectedCohort,
   customers,
   stages,
   applicationsByCustomer,
@@ -64,6 +66,7 @@ export function FunnelStageDetail({
   const [selectedStage, setSelectedStage] = useState<FunnelStatus>('applied')
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
+  const cohortParam = selectedCohort && selectedCohort !== 'all' ? selectedCohort : undefined
 
   async function handleInviteToInterview(customerId: string) {
     if (!window.confirm('Invite this applicant to interview? This will send them an interview invite email.')) return
@@ -72,7 +75,7 @@ export function FunnelStageDetail({
       const res = await fetch('/api/customers/invite-to-interview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ customer_id: customerId }),
+        body: JSON.stringify({ customer_id: customerId, cohort: cohortParam }),
       })
       if (!res.ok) {
         const data = await res.json()
@@ -94,7 +97,7 @@ export function FunnelStageDetail({
       const res = await fetch('/api/customers/reject-application', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ customer_id: customerId }),
+        body: JSON.stringify({ customer_id: customerId, cohort: cohortParam }),
       })
       if (!res.ok) {
         const data = await res.json()
@@ -116,7 +119,7 @@ export function FunnelStageDetail({
       const res = await fetch('/api/customers/no-show', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ customer_id: customerId }),
+        body: JSON.stringify({ customer_id: customerId, cohort: cohortParam }),
       })
       if (!res.ok) {
         const data = await res.json()

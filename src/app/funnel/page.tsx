@@ -219,6 +219,7 @@ export default async function FunnelPage({ searchParams }: PageProps) {
 
         {/* Time-filtered metrics + pipeline */}
         <FunnelPageClient
+          selectedCohort={selectedCohort}
           metricsApplications={metricsApplications}
           metricsBookings={metricsBookings}
           metricsInterviews={metricsInterviews}

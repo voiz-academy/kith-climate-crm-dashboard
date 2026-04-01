@@ -32,6 +32,7 @@ interface FunnelChangePayload {
   customer_id: string
   new_status: string
   old_status: string
+  cohort: string | null
 }
 
 interface ApplicationSubmittedPayload {
@@ -101,7 +102,7 @@ Deno.serve(async (req) => {
 // ── Funnel change handler ──────────────────────────────────────────────
 
 async function handleFunnelChange(payload: FunnelChangePayload, log: (msg: string) => void) {
-  const { customer_id, new_status, old_status } = payload
+  const { customer_id, new_status, old_status, cohort } = payload
 
   // 'applied' is handled exclusively by the application_submitted trigger
   // to avoid duplicate emails when both triggers fire
@@ -129,7 +130,7 @@ async function handleFunnelChange(payload: FunnelChangePayload, log: (msg: strin
   if (!customer) return
 
   for (const template of templates as Template[]) {
-    await processTemplate(template, customer, new_status, old_status, undefined, log)
+    await processTemplate(template, customer, new_status, old_status, cohort ?? undefined, log)
   }
 }
 

@@ -48,6 +48,24 @@ export async function POST(request: Request) {
       fathomRecordingId = parseInt(idMatch[1], 10)
     }
 
+    // Derive cohort from customer's most recent cohort_statuses entry
+    let derivedCohort: string | null = null
+    const { data: custData } = await supabase
+      .from('customers')
+      .select('cohort_statuses')
+      .eq('id', customer_id)
+      .single()
+    if (custData?.cohort_statuses) {
+      // Pick the cohort with the most recent updated_at
+      let latestDate = ''
+      for (const [key, val] of Object.entries(custData.cohort_statuses as Record<string, { status: string; updated_at: string }>)) {
+        if (val.updated_at > latestDate) {
+          latestDate = val.updated_at
+          derivedCohort = key
+        }
+      }
+    }
+
     // Look for existing interview for this customer
     const { data: existing } = await supabase
       .from('interviews')
@@ -94,7 +112,7 @@ export async function POST(request: Request) {
           fathom_summary: fathom_summary || null,
           outcome: 'pending',
           activity_type: 'demo',
-          cohort: 'May 18th 2026',
+          cohort: derivedCohort,
         })
         .select('id')
         .single()

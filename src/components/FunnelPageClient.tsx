@@ -14,6 +14,7 @@ function startOfDay(d: Date): Date {
 }
 
 interface FunnelPageClientProps {
+  selectedCohort: string
   metricsApplications: { created_at: string }[]
   metricsBookings: { created_at: string; cancelled_at: string | null }[]
   metricsInterviews: { conducted_at: string | null; created_at: string }[]
@@ -29,6 +30,7 @@ interface FunnelPageClientProps {
 }
 
 export function FunnelPageClient({
+  selectedCohort,
   metricsApplications,
   metricsBookings,
   metricsInterviews,
@@ -150,6 +152,7 @@ export function FunnelPageClient({
           </p>
         </div>
         <FunnelCRM
+          selectedCohort={selectedCohort}
           customers={filteredCustomers}
           applicationsByCustomer={applicationsByCustomer}
           interviewsByCustomer={interviewsByCustomer}

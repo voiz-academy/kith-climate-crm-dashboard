@@ -9,6 +9,7 @@ import { AddFathomDataModal } from './AddFathomDataModal'
 import { AddInterviewModal } from './AddInterviewModal'
 
 interface FunnelCRMProps {
+  selectedCohort: string
   customers: Customer[]
   applicationsByCustomer: Record<string, CohortApplication>
   interviewsByCustomer: Record<string, Interview>
@@ -340,6 +341,7 @@ function DetailRow({ label, value, children }: { label: string; value?: string |
 }
 
 export function FunnelCRM({
+  selectedCohort,
   customers,
   applicationsByCustomer,
   interviewsByCustomer,
@@ -349,6 +351,8 @@ export function FunnelCRM({
   bookingsByCustomer,
   reminderCountsByCustomer,
 }: FunnelCRMProps) {
+  // Cohort to pass to API routes — 'all' means no cohort filter (legacy path)
+  const cohortParam = selectedCohort !== 'all' ? selectedCohort : undefined
   const [expandedSides, setExpandedSides] = useState<Set<FunnelStatus>>(new Set())
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
@@ -379,7 +383,7 @@ export function FunnelCRM({
       const res = await fetch('/api/customers/invite-to-interview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ customer_id: customerId }),
+        body: JSON.stringify({ customer_id: customerId, cohort: cohortParam }),
       })
       if (!res.ok) {
         const data = await res.json()
@@ -401,7 +405,7 @@ export function FunnelCRM({
       const res = await fetch('/api/customers/reject-application', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ customer_id: customerId }),
+        body: JSON.stringify({ customer_id: customerId, cohort: cohortParam }),
       })
       if (!res.ok) {
         const data = await res.json()
@@ -423,7 +427,7 @@ export function FunnelCRM({
       const res = await fetch('/api/customers/invite-to-enrol', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ customer_id: customerId }),
+        body: JSON.stringify({ customer_id: customerId, cohort: cohortParam }),
       })
       if (!res.ok) {
         const data = await res.json()
@@ -445,7 +449,7 @@ export function FunnelCRM({
       const res = await fetch('/api/customers/reject-interview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ customer_id: customerId }),
+        body: JSON.stringify({ customer_id: customerId, cohort: cohortParam }),
       })
       if (!res.ok) {
         const data = await res.json()
@@ -467,7 +471,7 @@ export function FunnelCRM({
       const res = await fetch('/api/customers/no-show', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ customer_id: customerId }),
+        body: JSON.stringify({ customer_id: customerId, cohort: cohortParam }),
       })
       if (!res.ok) {
         const data = await res.json()
@@ -502,7 +506,7 @@ export function FunnelCRM({
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ customer_id: customerId }),
+        body: JSON.stringify({ customer_id: customerId, cohort: cohortParam }),
       })
       if (!res.ok) {
         const data = await res.json()
@@ -535,7 +539,7 @@ export function FunnelCRM({
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ customer_id: customerId }),
+        body: JSON.stringify({ customer_id: customerId, cohort: cohortParam }),
       })
       if (!res.ok) {
         const data = await res.json()
