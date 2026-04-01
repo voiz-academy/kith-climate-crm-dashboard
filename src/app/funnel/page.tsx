@@ -5,7 +5,6 @@ import {
 } from '@/lib/supabase'
 import { Header } from '@/components/Header'
 import { FunnelPageClient } from '@/components/FunnelPageClient'
-import { PendingChangesButton } from '@/components/PendingChangesButton'
 import { PendingInterviewsButton } from '@/components/PendingInterviewsButton'
 import { AddInterviewButton } from '@/components/AddInterviewButton'
 import { SyncOutlookButton } from '@/components/SyncOutlookButton'
@@ -235,12 +234,9 @@ export default async function FunnelPage({ searchParams }: PageProps) {
           <div className="flex items-center gap-3">
             <SyncOutlookButton />
             <AddInterviewButton />
-            <MailingButton templates={emailTemplates} pendingEmailCount={pendingEmailCount} />
+            <MailingButton templates={emailTemplates} pendingEmailCount={pendingEmailCount} pendingChangesCount={pendingCount} />
             {pendingInterviewsCount > 0 && (
               <PendingInterviewsButton count={pendingInterviewsCount} />
-            )}
-            {pendingCount > 0 && (
-              <PendingChangesButton count={pendingCount} />
             )}
           </div>
         </div>

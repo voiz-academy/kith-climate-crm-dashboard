@@ -43,9 +43,36 @@ type PendingEmailWithJoins = {
   } | null
 }
 
+type PendingChangeWithCustomer = {
+  id: string
+  customer_id: string
+  current_status: string
+  proposed_status: string
+  trigger_type: string
+  trigger_detail: {
+    subject?: string
+    sender?: string
+    recipient?: string
+    sent_at?: string
+  } | null
+  email_id: string | null
+  cohort: string | null
+  status: 'pending' | 'approved' | 'rejected'
+  created_at: string
+  customers: {
+    id: string
+    email: string
+    first_name: string | null
+    last_name: string | null
+    lead_type: string
+    funnel_status: string
+  } | null
+}
+
 interface MailingButtonProps {
   templates: Template[]
   pendingEmailCount: number
+  pendingChangesCount: number
 }
 
 const stageColors: Record<string, string> = {
@@ -80,8 +107,9 @@ function formatDate(dateStr: string): string {
   })
 }
 
-export function MailingButton({ templates, pendingEmailCount }: MailingButtonProps) {
+export function MailingButton({ templates, pendingEmailCount, pendingChangesCount }: MailingButtonProps) {
   const [showModal, setShowModal] = useState(false)
+  const totalPending = pendingEmailCount + pendingChangesCount
 
   return (
     <>
@@ -94,9 +122,9 @@ export function MailingButton({ templates, pendingEmailCount }: MailingButtonPro
           <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
         </svg>
         Mailing
-        {pendingEmailCount > 0 && (
+        {totalPending > 0 && (
           <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-[#D97706] text-white text-xs font-bold">
-            {pendingEmailCount}
+            {totalPending}
           </span>
         )}
       </button>
@@ -113,11 +141,15 @@ export function MailingButton({ templates, pendingEmailCount }: MailingButtonPro
 
 function MailingModal({ templates, onClose }: { templates: Template[]; onClose: () => void }) {
   const router = useRouter()
-  const [tab, setTab] = useState<'automations' | 'pending'>('automations')
+  const [tab, setTab] = useState<'automations' | 'pending' | 'changes'>('automations')
   const [pendingEmails, setPendingEmails] = useState<PendingEmailWithJoins[]>([])
+  const [pendingChanges, setPendingChanges] = useState<PendingChangeWithCustomer[]>([])
   const [loadingEmails, setLoadingEmails] = useState(true)
+  const [loadingChanges, setLoadingChanges] = useState(true)
   const [processing, setProcessing] = useState<Set<string>>(new Set())
+  const [changeProcessing, setChangeProcessing] = useState<Set<string>>(new Set())
   const [bulkProcessing, setBulkProcessing] = useState(false)
+  const [bulkChangeProcessing, setBulkChangeProcessing] = useState(false)
 
   const fetchPendingEmails = useCallback(async () => {
     setLoadingEmails(true)
@@ -134,9 +166,25 @@ function MailingModal({ templates, onClose }: { templates: Template[]; onClose: 
     }
   }, [])
 
+  const fetchPendingChanges = useCallback(async () => {
+    setLoadingChanges(true)
+    try {
+      const res = await fetch('/api/pending-changes')
+      if (res.ok) {
+        const data = await res.json()
+        setPendingChanges(data)
+      }
+    } catch (err) {
+      console.error('Failed to fetch pending changes:', err)
+    } finally {
+      setLoadingChanges(false)
+    }
+  }, [])
+
   useEffect(() => {
     fetchPendingEmails()
-  }, [fetchPendingEmails])
+    fetchPendingChanges()
+  }, [fetchPendingEmails, fetchPendingChanges])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -200,6 +248,35 @@ function MailingModal({ templates, onClose }: { templates: Template[]; onClose: 
     }
   }
 
+  async function handleChangeAction(ids: string[], action: 'approve' | 'reject') {
+    if (ids.length === 1) {
+      setChangeProcessing(prev => new Set(prev).add(ids[0]))
+    } else {
+      setBulkChangeProcessing(true)
+    }
+
+    try {
+      const res = await fetch(`/api/pending-changes/${action}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids }),
+      })
+
+      if (res.ok) {
+        setPendingChanges(prev => prev.filter(c => !ids.includes(c.id)))
+        router.refresh()
+      }
+    } catch (err) {
+      console.error(`Failed to ${action} changes:`, err)
+    } finally {
+      if (ids.length === 1) {
+        setChangeProcessing(prev => { const next = new Set(prev); next.delete(ids[0]); return next })
+      } else {
+        setBulkChangeProcessing(false)
+      }
+    }
+  }
+
   const activeCount = templates.filter(t => t.is_active === 'active').length
   const partialCount = templates.filter(t => t.is_active === 'partial').length
 
@@ -214,7 +291,7 @@ function MailingModal({ templates, onClose }: { templates: Template[]; onClose: 
           <div>
             <h2 className="text-xl font-semibold text-[var(--color-text-primary)]">Mailing</h2>
             <p className="text-sm text-[var(--color-text-muted)] mt-1">
-              {activeCount} auto-send · {partialCount} approval · {pendingEmails.length} pending
+              {activeCount} auto-send · {partialCount} approval · {pendingEmails.length} pending emails · {pendingChanges.length} pending changes
             </p>
           </div>
           <button onClick={onClose} className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors">
@@ -252,12 +329,115 @@ function MailingModal({ templates, onClose }: { templates: Template[]; onClose: 
               </span>
             )}
           </button>
+          <button
+            onClick={() => setTab('changes')}
+            className={`px-6 py-3 text-sm font-medium transition-colors flex items-center gap-2 ${
+              tab === 'changes'
+                ? 'text-[#5B9A8B] border-b-2 border-[#5B9A8B]'
+                : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
+            }`}
+          >
+            Status Changes
+            {pendingChanges.length > 0 && (
+              <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-[#5B9A8B] text-white text-xs font-bold">
+                {pendingChanges.length}
+              </span>
+            )}
+          </button>
         </div>
 
         {/* Content */}
         <div className="overflow-y-auto flex-1">
           {tab === 'automations' ? (
             <TemplateAutomationTable templates={templates} />
+          ) : tab === 'changes' ? (
+            <div className="p-6">
+              {pendingChanges.length > 0 && (
+                <div className="flex items-center gap-3 mb-4">
+                  <button
+                    onClick={() => handleChangeAction(pendingChanges.map(c => c.id), 'approve')}
+                    disabled={bulkChangeProcessing}
+                    className="px-4 py-1.5 text-sm font-medium rounded bg-[#5B9A8B] text-white hover:bg-[#4a8474] disabled:opacity-50 transition-colors"
+                  >
+                    {bulkChangeProcessing ? 'Processing...' : `Approve All (${pendingChanges.length})`}
+                  </button>
+                  <button
+                    onClick={() => handleChangeAction(pendingChanges.map(c => c.id), 'reject')}
+                    disabled={bulkChangeProcessing}
+                    className="px-4 py-1.5 text-sm font-medium rounded border border-[rgba(239,68,68,0.4)] text-[#EF4444] hover:bg-[rgba(239,68,68,0.1)] disabled:opacity-50 transition-colors"
+                  >
+                    Reject All
+                  </button>
+                </div>
+              )}
+
+              {loadingChanges ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#5B9A8B]" />
+                </div>
+              ) : pendingChanges.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-[var(--color-text-muted)]">No pending status changes</p>
+                  <p className="text-sm text-[var(--color-text-muted)] mt-1">All funnel changes from Outlook sync have been reviewed</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {pendingChanges.map((change) => {
+                    const customer = change.customers
+                    const name = customer
+                      ? [customer.first_name, customer.last_name].filter(Boolean).join(' ') || customer.email
+                      : 'Unknown'
+                    const isProcessing = changeProcessing.has(change.id)
+
+                    return (
+                      <div key={change.id} className={`rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4 ${isProcessing ? 'opacity-50' : ''}`}>
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="min-w-0 flex-1">
+                            <span className="text-sm font-medium text-[var(--color-text-primary)]">{name}</span>
+                            {customer && name !== customer.email && (
+                              <p className="text-xs text-[var(--color-text-muted)] mt-0.5">{customer.email}</p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <button
+                              onClick={() => handleChangeAction([change.id], 'approve')}
+                              disabled={isProcessing}
+                              className="px-3 py-1 text-xs font-medium rounded bg-[#5B9A8B] text-white hover:bg-[#4a8474] disabled:opacity-50 transition-colors"
+                            >Approve</button>
+                            <button
+                              onClick={() => handleChangeAction([change.id], 'reject')}
+                              disabled={isProcessing}
+                              className="px-3 py-1 text-xs font-medium rounded border border-[rgba(239,68,68,0.4)] text-[#EF4444] hover:bg-[rgba(239,68,68,0.1)] disabled:opacity-50 transition-colors"
+                            >Reject</button>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 mt-2">
+                          <StatusBadge status={change.current_status} />
+                          <span className="text-xs text-[var(--color-text-muted)]">&rarr;</span>
+                          <StatusBadge status={change.proposed_status} />
+                          {change.cohort && (
+                            <span className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-[rgba(107,141,214,0.12)] text-[#6B8DD6] border border-[rgba(107,141,214,0.25)]">
+                              {change.cohort}
+                            </span>
+                          )}
+                        </div>
+                        {change.trigger_detail && (
+                          <div className="mt-2 text-xs text-[var(--color-text-muted)] space-y-0.5">
+                            {change.trigger_detail.subject && (
+                              <p><span className="font-medium">Subject:</span> {change.trigger_detail.subject}</p>
+                            )}
+                            {change.trigger_detail.sender && (
+                              <p><span className="font-medium">From:</span> {change.trigger_detail.sender}</p>
+                            )}
+                          </div>
+                        )}
+                        <p className="text-[10px] text-[var(--color-text-muted)] mt-2">Queued {formatDate(change.created_at)}</p>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
           ) : (
             <div className="p-6">
               {/* Bulk actions */}
