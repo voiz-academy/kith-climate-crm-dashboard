@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Customer, CohortApplication, Interview, Email, Payment,
   FunnelStatus, FUNNEL_LABELS, SIDE_STATUSES,
@@ -63,6 +63,7 @@ export function FunnelStageDetail({
 }: FunnelStageDetailProps) {
   const [selectedStage, setSelectedStage] = useState<FunnelStatus>('applied')
   const [actionLoading, setActionLoading] = useState<string | null>(null)
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
 
   async function handleInviteToInterview(customerId: string) {
     if (!window.confirm('Invite this applicant to interview? This will send them an interview invite email.')) return
@@ -179,7 +180,8 @@ export function FunnelStageDetail({
             {filteredCustomers.map((customer) => (
               <tr
                 key={customer.id}
-                className="border-b border-[var(--color-border-subtle)] hover:bg-[rgba(91,154,139,0.05)] transition-colors"
+                className="border-b border-[var(--color-border-subtle)] hover:bg-[rgba(91,154,139,0.05)] transition-colors cursor-pointer"
+                onClick={() => setSelectedCustomer(customer)}
               >
                 <td className="px-6 py-3 whitespace-nowrap text-sm text-[var(--color-text-primary)]">
                   {customer.first_name} {customer.last_name}
@@ -205,14 +207,14 @@ export function FunnelStageDetail({
                   <td className="px-6 py-3 whitespace-nowrap">
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => handleInviteToInterview(customer.id)}
+                        onClick={(e) => { e.stopPropagation(); handleInviteToInterview(customer.id) }}
                         disabled={actionLoading === customer.id}
                         className="px-2 py-1 text-xs font-medium rounded border transition-colors text-[#22C55E] border-[rgba(34,197,94,0.3)] hover:bg-[rgba(34,197,94,0.1)] disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {actionLoading === customer.id ? '...' : '\u2709 Invite'}
                       </button>
                       <button
-                        onClick={() => handleRejectApplication(customer.id)}
+                        onClick={(e) => { e.stopPropagation(); handleRejectApplication(customer.id) }}
                         disabled={actionLoading === customer.id}
                         className="px-2 py-1 text-xs font-medium rounded border transition-colors text-[#EF4444] border-[rgba(239,68,68,0.3)] hover:bg-[rgba(239,68,68,0.1)] disabled:opacity-50 disabled:cursor-not-allowed"
                       >
@@ -224,7 +226,7 @@ export function FunnelStageDetail({
                 {selectedStage === 'booked' && (
                   <td className="px-6 py-3 whitespace-nowrap">
                     <button
-                      onClick={() => handleNoShow(customer.id)}
+                      onClick={(e) => { e.stopPropagation(); handleNoShow(customer.id) }}
                       disabled={actionLoading === customer.id}
                       className="px-2 py-1 text-xs font-medium rounded border transition-colors text-[#D97706] border-[rgba(217,119,6,0.3)] hover:bg-[rgba(217,119,6,0.1)] disabled:opacity-50 disabled:cursor-not-allowed"
                     >
@@ -243,6 +245,157 @@ export function FunnelStageDetail({
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Customer Detail Modal */}
+      {selectedCustomer && (
+        <CustomerDetailModal
+          customer={selectedCustomer}
+          application={applicationsByCustomer[selectedCustomer.id]}
+          interview={interviewsByCustomer[selectedCustomer.id]}
+          onClose={() => setSelectedCustomer(null)}
+        />
+      )}
+    </div>
+  )
+}
+
+/** Customer detail modal shown when clicking a row */
+function CustomerDetailModal({
+  customer,
+  application,
+  interview,
+  onClose,
+}: {
+  customer: Customer
+  application?: CohortApplication
+  interview?: Interview
+  onClose: () => void
+}) {
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
+
+  useEffect(() => {
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = '' }
+  }, [])
+
+  const leadTypeColors: Record<string, string> = {
+    professional: 'bg-[rgba(91,154,139,0.15)] text-[#5B9A8B] border border-[rgba(91,154,139,0.3)]',
+    pivoter: 'bg-[rgba(107,141,214,0.15)] text-[#6B8DD6] border border-[rgba(107,141,214,0.3)]',
+    unknown: 'bg-[rgba(232,230,227,0.05)] text-[rgba(232,230,227,0.5)] border border-[rgba(232,230,227,0.1)]',
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-[var(--color-card)] rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-start justify-between p-6 border-b border-[var(--color-border)]">
+          <div>
+            <h2 className="text-xl font-semibold text-[var(--color-text-primary)]">
+              {customer.first_name} {customer.last_name}
+            </h2>
+            <p className="text-sm text-[var(--color-text-secondary)] mt-1">
+              {customer.linkedin_headline || customer.linkedin_title || customer.email}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="p-6 space-y-5">
+          {/* Type & LinkedIn */}
+          <div className="flex items-center gap-4">
+            <span className={`px-3 py-1.5 text-sm font-medium rounded ${leadTypeColors[customer.lead_type]}`}>
+              {customer.lead_type}
+            </span>
+            {customer.linkedin_url && (
+              <a
+                href={customer.linkedin_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded border border-[#0077B5] text-[#0077B5] hover:bg-[rgba(0,119,181,0.1)] transition-colors text-sm font-medium"
+              >
+                LinkedIn
+              </a>
+            )}
+          </div>
+
+          {/* Info Grid */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <dt className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Email</dt>
+              <dd className="mt-1 text-sm text-[var(--color-text-primary)]">{customer.email}</dd>
+            </div>
+            <div>
+              <dt className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Company</dt>
+              <dd className="mt-1 text-sm text-[var(--color-text-primary)]">{customer.linkedin_company || customer.company_domain || '-'}</dd>
+            </div>
+            <div>
+              <dt className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Role (Application)</dt>
+              <dd className="mt-1 text-sm text-[var(--color-text-primary)]">{application?.role || '-'}</dd>
+            </div>
+            <div>
+              <dt className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Background</dt>
+              <dd className="mt-1 text-sm text-[var(--color-text-primary)]">{application?.background || '-'}</dd>
+            </div>
+          </div>
+
+          {/* Application Statement */}
+          {application?.goals && (
+            <div>
+              <h3 className="text-sm font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-2">
+                Application Statement
+              </h3>
+              <div className="bg-[var(--color-surface)] rounded-lg p-4 border border-[var(--color-border)]">
+                <p className="text-sm text-[var(--color-text-primary)] leading-relaxed whitespace-pre-wrap">
+                  {application.goals}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Interview Notes (if available) */}
+          {interview?.interviewer_notes && (
+            <div>
+              <h3 className="text-sm font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-2">
+                Interview Notes
+              </h3>
+              <div className="bg-[var(--color-surface)] rounded-lg p-4 border border-[var(--color-border)]">
+                <p className="text-sm text-[var(--color-text-primary)] leading-relaxed whitespace-pre-wrap">
+                  {interview.interviewer_notes}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Metadata */}
+          <div className="pt-3 border-t border-[var(--color-border)]">
+            <div className="flex justify-between text-xs text-[var(--color-text-muted)]">
+              <span>Status: {FUNNEL_LABELS[customer.funnel_status]}</span>
+              <span>Applied: {formatDate(application?.created_at)}</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   )
