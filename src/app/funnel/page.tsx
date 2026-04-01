@@ -111,14 +111,17 @@ export default async function FunnelPage({ searchParams }: PageProps) {
   const cohortCustomerIds = isFiltered
     ? new Set(effectiveCustomers.map(c => c.id))
     : null
+  // Applications and interviews use customer membership (not cohort tag) because
+  // customers deferred from a previous cohort carry their data forward.
+  // Bookings, emails, and payments use cohort tag since they're cohort-specific actions.
   const filteredApplications = isFiltered
     ? applications.filter(a => a.customer_id && cohortCustomerIds!.has(a.customer_id))
     : applications
   const filteredInterviews = isFiltered
-    ? interviews.filter(i => i.cohort === selectedCohort)
+    ? interviews.filter(i => cohortCustomerIds!.has(i.customer_id))
     : interviews
   const filteredBookings = isFiltered
-    ? bookings.filter(b => b.cohort === selectedCohort)
+    ? bookings.filter(b => cohortCustomerIds!.has(b.customer_id))
     : bookings
   const filteredEmails = isFiltered
     ? emails.filter(e => e.cohort === selectedCohort)
