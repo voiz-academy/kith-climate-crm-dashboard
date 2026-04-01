@@ -323,11 +323,21 @@ function CustomerDetailModal({
 
         {/* Content */}
         <div className="p-6 space-y-5">
-          {/* Type & LinkedIn */}
-          <div className="flex items-center gap-4">
+          {/* Type badge, LinkedIn, cohort */}
+          <div className="flex items-center gap-3 flex-wrap">
             <span className={`px-3 py-1.5 text-sm font-medium rounded ${leadTypeColors[customer.lead_type]}`}>
               {customer.lead_type}
             </span>
+            {application?.cohort && (
+              <span className="px-3 py-1.5 text-sm font-medium rounded bg-[rgba(91,154,139,0.1)] text-[#5B9A8B] border border-[rgba(91,154,139,0.2)]">
+                {application.cohort}
+              </span>
+            )}
+            {application?.budget_confirmed && (
+              <span className="px-3 py-1.5 text-sm font-medium rounded bg-[rgba(34,197,94,0.1)] text-[#22C55E] border border-[rgba(34,197,94,0.2)]">
+                Budget confirmed
+              </span>
+            )}
             {customer.linkedin_url && (
               <a
                 href={customer.linkedin_url}
@@ -340,38 +350,65 @@ function CustomerDetailModal({
             )}
           </div>
 
-          {/* Info Grid */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <dt className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Email</dt>
-              <dd className="mt-1 text-sm text-[var(--color-text-primary)]">{customer.email}</dd>
-            </div>
-            <div>
-              <dt className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Company</dt>
-              <dd className="mt-1 text-sm text-[var(--color-text-primary)]">{customer.linkedin_company || customer.company_domain || '-'}</dd>
-            </div>
-            <div>
-              <dt className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Role (Application)</dt>
-              <dd className="mt-1 text-sm text-[var(--color-text-primary)]">{application?.role || '-'}</dd>
-            </div>
-            <div>
-              <dt className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Background</dt>
-              <dd className="mt-1 text-sm text-[var(--color-text-primary)]">{application?.background || '-'}</dd>
-            </div>
-          </div>
-
-          {/* Application Statement */}
-          {application?.goals && (
-            <div>
-              <h3 className="text-sm font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-2">
-                Application Statement
-              </h3>
-              <div className="bg-[var(--color-surface)] rounded-lg p-4 border border-[var(--color-border)]">
-                <p className="text-sm text-[var(--color-text-primary)] leading-relaxed whitespace-pre-wrap">
-                  {application.goals}
-                </p>
+          {/* Application Data */}
+          {application ? (
+            <>
+              <div>
+                <h3 className="text-sm font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-3">
+                  Application
+                </h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <dt className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Name (as submitted)</dt>
+                    <dd className="mt-1 text-sm text-[var(--color-text-primary)]">{application.name || '-'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Email</dt>
+                    <dd className="mt-1 text-sm text-[var(--color-text-primary)]">{application.email || customer.email}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Role</dt>
+                    <dd className="mt-1 text-sm text-[var(--color-text-primary)]">{application.role || '-'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Background</dt>
+                    <dd className="mt-1 text-sm text-[var(--color-text-primary)]">{application.background || '-'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">AI View</dt>
+                    <dd className="mt-1 text-sm text-[var(--color-text-primary)]">{application.ai_view || '-'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">LinkedIn (submitted)</dt>
+                    <dd className="mt-1 text-sm text-[var(--color-text-primary)] truncate">{application.linkedin || '-'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">UTM Source</dt>
+                    <dd className="mt-1 text-sm text-[var(--color-text-primary)]">{application.utm_source || 'Direct'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Applied</dt>
+                    <dd className="mt-1 text-sm text-[var(--color-text-primary)]">{formatDate(application.created_at)}</dd>
+                  </div>
+                </div>
               </div>
-            </div>
+
+              {/* Application Statement */}
+              {application.goals && (
+                <div>
+                  <h3 className="text-sm font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-2">
+                    Application Statement
+                  </h3>
+                  <div className="bg-[var(--color-surface)] rounded-lg p-4 border border-[var(--color-border)]">
+                    <p className="text-sm text-[var(--color-text-primary)] leading-relaxed whitespace-pre-wrap">
+                      {application.goals}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <p className="text-sm text-[var(--color-text-muted)]">No application on file</p>
           )}
 
           {/* Interview Notes (if available) */}
@@ -388,11 +425,30 @@ function CustomerDetailModal({
             </div>
           )}
 
+          {/* Enriched LinkedIn (secondary) */}
+          {(customer.linkedin_title || customer.linkedin_company) && (
+            <div>
+              <h3 className="text-sm font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-2">
+                LinkedIn (enriched)
+              </h3>
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <dt className="text-[var(--color-text-muted)]">Title</dt>
+                  <dd className="mt-0.5 text-[var(--color-text-secondary)]">{customer.linkedin_title || '-'}</dd>
+                </div>
+                <div>
+                  <dt className="text-[var(--color-text-muted)]">Company</dt>
+                  <dd className="mt-0.5 text-[var(--color-text-secondary)]">{customer.linkedin_company || '-'}</dd>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Metadata */}
           <div className="pt-3 border-t border-[var(--color-border)]">
             <div className="flex justify-between text-xs text-[var(--color-text-muted)]">
               <span>Status: {FUNNEL_LABELS[customer.funnel_status]}</span>
-              <span>Applied: {formatDate(application?.created_at)}</span>
+              <span>Customer since: {formatDate(customer.created_at)}</span>
             </div>
           </div>
         </div>
