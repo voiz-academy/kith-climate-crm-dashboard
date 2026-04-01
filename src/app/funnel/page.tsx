@@ -10,6 +10,7 @@ import { PendingInterviewsButton } from '@/components/PendingInterviewsButton'
 import { AddInterviewButton } from '@/components/AddInterviewButton'
 import { SyncOutlookButton } from '@/components/SyncOutlookButton'
 import { CohortSelector } from '@/components/CohortSelector'
+import { MailingButton } from '@/components/MailingButton'
 
 async function getFunnelData() {
   const [customers, applications, interviews, bookings, emails, payments] = await Promise.all([
@@ -45,7 +46,33 @@ async function getFunnelData() {
     // Non-critical — if count fails, button just won't show
   }
 
-  return { customers, applications, interviews, bookings, emails, payments, pendingCount, pendingInterviewsCount }
+  // Fetch email templates for mailing modal
+  const { data: rawTemplates } = await getSupabase()
+    .from('email_templates')
+    .select('id, name, subject, funnel_trigger, is_active')
+    .order('name', { ascending: true })
+
+  const statusOrder: Record<string, number> = { active: 0, partial: 1, inactive: 2 }
+  const emailTemplates = (rawTemplates ?? []).sort((a, b) => {
+    const aDiff = statusOrder[a.is_active] ?? 9
+    const bDiff = statusOrder[b.is_active] ?? 9
+    if (aDiff !== bDiff) return aDiff - bDiff
+    return a.name.localeCompare(b.name)
+  })
+
+  // Count pending emails
+  let pendingEmailCount = 0
+  try {
+    const { count, error } = await getSupabase()
+      .from('pending_emails')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'pending')
+    if (!error && count !== null) pendingEmailCount = count
+  } catch {
+    // Non-critical
+  }
+
+  return { customers, applications, interviews, bookings, emails, payments, pendingCount, pendingInterviewsCount, emailTemplates, pendingEmailCount }
 }
 
 export const dynamic = 'force-dynamic'
@@ -59,7 +86,7 @@ export default async function FunnelPage({ searchParams }: PageProps) {
   const selectedCohort = (params.cohort ?? 'May 18th 2026') as CohortFilter
   const isFiltered = selectedCohort !== 'all'
 
-  const { customers, applications, interviews, bookings, emails, payments, pendingCount, pendingInterviewsCount } = await getFunnelData()
+  const { customers, applications, interviews, bookings, emails, payments, pendingCount, pendingInterviewsCount, emailTemplates, pendingEmailCount } = await getFunnelData()
 
   // When a specific cohort is selected, map customers to their cohort-specific status.
   let effectiveCustomers: Customer[]
@@ -208,6 +235,7 @@ export default async function FunnelPage({ searchParams }: PageProps) {
           <div className="flex items-center gap-3">
             <SyncOutlookButton />
             <AddInterviewButton />
+            <MailingButton templates={emailTemplates} pendingEmailCount={pendingEmailCount} />
             {pendingInterviewsCount > 0 && (
               <PendingInterviewsButton count={pendingInterviewsCount} />
             )}
