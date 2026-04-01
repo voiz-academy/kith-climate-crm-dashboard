@@ -2,7 +2,8 @@
  * POST /api/customers/invite-to-enrol
  *
  * Moves a customer from 'interviewed' to 'invited_to_enrol' via advance_funnel RPC,
- * then triggers the enrolment invite email automation via database trigger.
+ * sets enrollment_deadline to 5 business days from now, then triggers the
+ * enrolment invite email automation via database trigger.
  *
  * Body: { customer_id: string, cohort?: string }
  */
@@ -12,6 +13,27 @@ import { getSupabase } from '@/lib/supabase'
 import { withLogging } from '@/lib/log-invocation'
 
 export const dynamic = 'force-dynamic'
+
+/** Calculate a date N business days from now (skips weekends) */
+function addBusinessDays(from: Date, days: number): Date {
+  const result = new Date(from)
+  let added = 0
+  while (added < days) {
+    result.setDate(result.getDate() + 1)
+    const dow = result.getDay()
+    if (dow !== 0 && dow !== 6) added++
+  }
+  return result
+}
+
+/** Format date as "April 9, 2026" */
+function formatDeadline(date: Date): string {
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  })
+}
 
 export const POST = withLogging(
   { functionName: 'api/customers/invite-to-enrol', httpMethod: 'POST' },
@@ -41,6 +63,20 @@ export const POST = withLogging(
         )
       }
 
+      // Set enrollment deadline to 5 business days from now
+      const deadline = addBusinessDays(new Date(), 5)
+      const deadlineFormatted = formatDeadline(deadline)
+
+      const { error: deadlineErr } = await supabase
+        .from('customers')
+        .update({ enrollment_deadline: deadlineFormatted })
+        .eq('id', customer_id)
+
+      if (deadlineErr) {
+        console.error('Set enrollment deadline error:', deadlineErr)
+      }
+
+      // Advance funnel (triggers email automation via DB trigger)
       const { error } = await supabase.rpc('advance_funnel', {
         p_customer_id: customer_id,
         p_new_status: 'invited_to_enrol',
@@ -55,7 +91,7 @@ export const POST = withLogging(
         )
       }
 
-      return NextResponse.json({ success: true })
+      return NextResponse.json({ success: true, enrollment_deadline: deadlineFormatted })
     } catch (error) {
       console.error('Invite to enrol error:', error)
       return NextResponse.json(
