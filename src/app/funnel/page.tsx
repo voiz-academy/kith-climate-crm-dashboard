@@ -78,9 +78,15 @@ export default async function FunnelPage({ searchParams }: PageProps) {
   // Filter out 'registered' customers — only show those who have progressed
   const activeCustomers = effectiveCustomers.filter(c => c.funnel_status !== 'registered')
 
-  // Filter child data by cohort when a specific cohort is selected
+  // Filter child data by cohort when a specific cohort is selected.
+  // Applications use customer membership (cohort_statuses) rather than application
+  // cohort tag, because legacy applications may have old tags like 'Waitlist' or
+  // 'march-2026' for customers who were later invited to the named cohort.
+  const cohortCustomerIds = isFiltered
+    ? new Set(effectiveCustomers.map(c => c.id))
+    : null
   const filteredApplications = isFiltered
-    ? applications.filter(a => a.cohort === selectedCohort)
+    ? applications.filter(a => a.customer_id && cohortCustomerIds!.has(a.customer_id))
     : applications
   const filteredInterviews = isFiltered
     ? interviews.filter(i => i.cohort === selectedCohort)

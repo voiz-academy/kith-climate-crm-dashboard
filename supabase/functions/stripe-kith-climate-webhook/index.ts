@@ -18,23 +18,6 @@ const CURRENT_COHORT = "May 18th 2026";
 // trigger enrolment. They receive no cohort assignment.
 const FULL_ENROLMENT_CENTS = 150000;
 
-// Funnel rank system — only advance, never backslide
-const FUNNEL_RANKS: Record<string, number> = {
-  registered: 1,
-  applied: 2,
-  application_rejected: 2,
-  invited_to_interview: 3,
-  booked: 4,
-  interviewed: 5,
-  no_show: 5,
-  interview_rejected: 5,
-  invited_to_enrol: 6,
-  offer_expired: 6,
-  requested_discount: 6,
-  deferred_next_cohort: 6,
-  enrolled: 7,
-};
-
 const supabase = createClient(supabaseUrl, supabaseKey, {
   db: { schema: "kith_climate" },
 });
@@ -70,47 +53,19 @@ async function logToSystemLogs(
 }
 
 // ——— FUNNEL ADVANCEMENT ————————————————————————————————————————
-async function advanceFunnel(customerId: string, targetStatus: string) {
-  const targetRank = FUNNEL_RANKS[targetStatus];
-  if (!targetRank) {
-    log("Unknown target funnel status", { targetStatus });
-    return;
-  }
-
-  const { data: customer } = await supabase
-    .from("customers")
-    .select("funnel_status")
-    .eq("id", customerId)
-    .single();
-
-  if (!customer) {
-    log("Customer not found for funnel advancement", { customerId });
-    return;
-  }
-
-  const currentRank = FUNNEL_RANKS[customer.funnel_status] || 0;
-  if (currentRank >= targetRank) {
-    log("Funnel already at or past target", {
-      customerId,
-      current: customer.funnel_status,
-      target: targetStatus,
-    });
-    return;
-  }
-
-  const { error } = await supabase
-    .from("customers")
-    .update({ funnel_status: targetStatus, updated_at: new Date().toISOString() })
-    .eq("id", customerId);
+// Uses the advance_funnel RPC which updates BOTH funnel_status and
+// cohort_statuses JSONB atomically — prevents cohort status drift.
+async function advanceFunnel(customerId: string, targetStatus: string, cohort?: string) {
+  const { error } = await supabase.rpc("advance_funnel", {
+    p_customer_id: customerId,
+    p_new_status: targetStatus,
+    p_cohort: cohort || null,
+  });
 
   if (error) {
-    log("Funnel advancement failed", { customerId, error: error.message });
+    log("Funnel advancement failed", { customerId, targetStatus, cohort, error: error.message });
   } else {
-    log("Funnel advanced", {
-      customerId,
-      from: customer.funnel_status,
-      to: targetStatus,
-    });
+    log("Funnel advanced", { customerId, to: targetStatus, cohort });
   }
 }
 
@@ -402,8 +357,8 @@ Deno.serve(async (req: Request) => {
         return json({ status: "error", error: insertErr.message }, 500);
       }
 
-      // Advance funnel to enrolled
-      await advanceFunnel(customer.id, "enrolled");
+      // Advance funnel to enrolled (cohort-aware — updates both funnel_status and cohort_statuses)
+      await advanceFunnel(customer.id, "enrolled", cohort);
 
       log("Payment created & customer enrolled", { email: customerEmail, amount: amountTotal, productIds, cohort });
       await logToSystemLogs("success", 200, Date.now() - start, { event_type: event.type, action: "created_enrolment", email: customerEmail, amount_cents: amountTotal, cohort, stripe_event_id: event.id });
@@ -491,8 +446,8 @@ Deno.serve(async (req: Request) => {
             return json({ status: "error", error: insertErr.message }, 500);
           }
 
-          // Advance funnel to enrolled
-          await advanceFunnel(customer.id, "enrolled");
+          // Advance funnel to enrolled (cohort-aware — updates both funnel_status and cohort_statuses)
+          await advanceFunnel(customer.id, "enrolled", cohort);
 
           log("Invoice enrolment payment created & customer enrolled", { email: customerEmail, amount: amountPaid, cohort });
           await logToSystemLogs("success", 200, Date.now() - start, { event_type: event.type, action: "created_invoice_enrolment", email: customerEmail, amount_cents: amountPaid, cohort, stripe_event_id: event.id });
