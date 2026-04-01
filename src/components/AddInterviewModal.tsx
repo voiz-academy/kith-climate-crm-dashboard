@@ -40,10 +40,11 @@ const OUTCOMES = [
   { value: 'rejected', label: 'Rejected' },
   { value: 'waitlisted', label: 'Waitlisted' },
 ]
+// Cohort options derived from central source (with 'No cohort' prepended)
+import { COHORT_OPTIONS as ALL_COHORT_OPTIONS } from '@/lib/supabase'
 const COHORT_OPTIONS = [
   { value: '', label: 'No cohort' },
-  { value: 'May 18th 2026', label: 'May 18th 2026' },
-  { value: 'March 16th 2026', label: 'March 16th 2026' },
+  ...ALL_COHORT_OPTIONS.filter(o => o.value !== 'all'),
 ]
 
 export function AddInterviewModal({ onClose, onCreated, initialCustomer }: AddInterviewModalProps) {

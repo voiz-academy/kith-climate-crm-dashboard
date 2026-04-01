@@ -31,11 +31,9 @@ const emailStatusColors: Record<string, string> = {
   failed: 'bg-[rgba(239,68,68,0.15)] text-[#EF4444] border-[rgba(239,68,68,0.4)]',
 }
 
-const COHORT_OPTIONS = [
-  { value: 'January 19th 2026', label: 'January 19th 2026' },
-  { value: 'March 16th 2026', label: 'March 16th 2026' },
-  { value: 'May 18th 2026', label: 'May 18th 2026' },
-]
+// Cohort options derived from central source (excludes 'all')
+import { COHORT_OPTIONS as ALL_COHORT_OPTIONS } from '@/lib/supabase'
+const COHORT_OPTIONS = ALL_COHORT_OPTIONS.filter(o => o.value !== 'all')
 
 function formatDate(dateStr: string | null): string {
   if (!dateStr) return '-'
