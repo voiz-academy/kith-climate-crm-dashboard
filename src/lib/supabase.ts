@@ -100,6 +100,8 @@ export const COHORT_OPTIONS = [
   { value: 'all', label: 'All Cohorts' },
   { value: 'May 18th 2026', label: 'May 18th 2026' },
   { value: 'March 16th 2026', label: 'March 16th 2026' },
+  { value: 'January 19th 2026', label: 'January 19th 2026' },
+  { value: 'VoizAI', label: 'VoizAI (Rolling)' },
 ] as const
 
 export type CohortFilter = typeof COHORT_OPTIONS[number]['value']
