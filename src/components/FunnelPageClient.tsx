@@ -130,6 +130,8 @@ export function FunnelPageClient({
 
       {/* Time-filtered metrics */}
       <FunnelMetrics
+        customerCount={filteredCustomers.length}
+        enrolledCount={filteredCustomers.filter(c => c.funnel_status === 'enrolled').length}
         applications={metricsApplications}
         bookings={metricsBookings}
         interviews={metricsInterviews}

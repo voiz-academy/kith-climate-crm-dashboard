@@ -3,6 +3,8 @@
 import { useMemo } from 'react'
 
 interface FunnelMetricsProps {
+  customerCount: number
+  enrolledCount: number
   applications: { created_at: string }[]
   bookings: { created_at: string; cancelled_at: string | null }[]
   interviews: { conducted_at: string | null; created_at: string }[]
@@ -12,7 +14,7 @@ interface FunnelMetricsProps {
   range: 'all' | '7d' | '30d' | '90d' | 'custom'
 }
 
-export function FunnelMetrics({ applications, bookings, interviews, payments, cutoff, customEnd, range }: FunnelMetricsProps) {
+export function FunnelMetrics({ customerCount, enrolledCount, applications, bookings, interviews, payments, cutoff, customEnd, range }: FunnelMetricsProps) {
 
   function inRange(dateStr: string | null | undefined): boolean {
     if (!dateStr) return false
@@ -60,8 +62,8 @@ export function FunnelMetrics({ applications, bookings, interviews, payments, cu
     [payments, cutoff, customEnd]
   )
 
-  const conversionRate = appCount > 0
-    ? `${((enrollmentCount / appCount) * 100).toFixed(0)}%`
+  const conversionRate = customerCount > 0
+    ? `${((enrolledCount / customerCount) * 100).toFixed(0)}%`
     : '-'
 
   return (
@@ -69,10 +71,10 @@ export function FunnelMetrics({ applications, bookings, interviews, payments, cu
       {/* Metric cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="kith-card p-6">
-          <h3 className="kith-label">Applications</h3>
-          <p className="mt-3 text-3xl font-semibold text-[var(--color-text-primary)]">{appCount}</p>
+          <h3 className="kith-label">In Funnel</h3>
+          <p className="mt-3 text-3xl font-semibold text-[var(--color-text-primary)]">{customerCount}</p>
           <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-            {range === 'all' ? 'All time' : `In selected period`}
+            Total customers
           </p>
         </div>
         <div className="kith-card p-6">
@@ -90,10 +92,10 @@ export function FunnelMetrics({ applications, bookings, interviews, payments, cu
           </p>
         </div>
         <div className="kith-card p-6 border-[var(--color-border-hover)]">
-          <h3 className="kith-label">Enrollments</h3>
-          <p className="mt-3 text-3xl font-semibold text-[#5B9A8B]">{enrollmentCount}</p>
+          <h3 className="kith-label">Enrolled</h3>
+          <p className="mt-3 text-3xl font-semibold text-[#5B9A8B]">{enrolledCount}</p>
           <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-            {conversionRate} conversion{range !== 'all' ? ' in period' : ''}
+            {conversionRate} conversion
           </p>
         </div>
       </div>
