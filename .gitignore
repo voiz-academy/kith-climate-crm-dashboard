@@ -58,7 +58,6 @@ linkedin-followers/
 !README.txt
 fathom_*.json
 scripts/
-!.github/scripts/
 PLAN.md
 FIXES_PROPOSAL.md
 deploy.ps1
