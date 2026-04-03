@@ -121,6 +121,8 @@ serve(async (req) => {
           return await handleSendEmail(body);
         case "bulk_create":
           return await handleBulkCreate(body);
+        case "redeploy":
+          return await handleRedeploy(body);
         default:
           return json({ error: `Unknown action: ${(body as any).action}` }, 400);
       }
@@ -134,6 +136,30 @@ serve(async (req) => {
 });
 
 // ── Action handlers ────────────────────────────────────────────────────
+
+async function handleRedeploy(body: any) {
+  const { certificate_number } = body;
+  if (!certificate_number) {
+    return json({ error: "certificate_number is required" }, 400);
+  }
+
+  const { data: cert, error } = await supabase
+    .from("certifications")
+    .select("*")
+    .eq("certificate_number", certificate_number)
+    .single();
+
+  if (error || !cert) {
+    return json({ error: "Certification not found" }, 404);
+  }
+
+  const result = await deployStaticCertificate(cert);
+  if (!result.ok) {
+    return json({ error: result.error }, 500);
+  }
+
+  return json({ ok: true, certificate_number, url: getCertificateUrl(cert) });
+}
 
 async function handleCreate(body: CreateRequest) {
   const { first_name, last_name, email, company, cohort, program } = body;
