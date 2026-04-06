@@ -33,13 +33,6 @@ export function getSupabase(): AnySupabaseClient {
 }
 
 
-/** @deprecated Use getSupabase() — kept for backwards compatibility */
-export const supabase = new Proxy({} as AnySupabaseClient, {
-  get(_target, prop) {
-    return (getSupabase() as unknown as Record<string | symbol, unknown>)[prop]
-  },
-})
-
 // Funnel status types and helpers
 export type FunnelStatus =
   | 'registered'
@@ -148,8 +141,6 @@ export type Customer = {
   updated_at: string
 }
 
-/** @deprecated Use Customer instead */
-export type WorkshopLead = Customer
 
 export type WorkshopRegistration = {
   id: string

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { getSupabase } from '@/lib/supabase'
 import { withLogging } from '@/lib/log-invocation'
 
 export const dynamic = 'force-dynamic'
@@ -12,7 +12,7 @@ export const GET = withLogging(
 
       const counts: Record<string, number> = {}
       for (const status of statuses) {
-        const { count, error } = await supabase
+        const { count, error } = await getSupabase()
           .from('customers')
           .select('*', { count: 'exact', head: true })
           .eq('enrichment_status', status)

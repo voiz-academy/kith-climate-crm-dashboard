@@ -11,7 +11,7 @@
  */
 
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { getSupabase } from '@/lib/supabase'
 import {
   fetchAllMeetingsFromAllAccounts,
   extractInterviewData,
@@ -28,7 +28,7 @@ export const POST = withLogging(
   async () => {
     try {
       // 1. Fetch all existing interviews to match against
-      const { data: existingInterviews, error: fetchError } = await supabase
+      const { data: existingInterviews, error: fetchError } = await getSupabase()
         .from('interviews')
         .select('id, fathom_recording_url, fathom_recording_id, interviewee_email')
 
@@ -137,7 +137,7 @@ async function updateExistingInterview(interviewId: string, meeting: FathomMeeti
   if (interviewData.interviewee_name) updateFields.interviewee_name = interviewData.interviewee_name
   if (interviewData.interviewee_email) updateFields.interviewee_email = interviewData.interviewee_email
 
-  const { error } = await supabase
+  const { error } = await getSupabase()
     .from('interviews')
     .update(updateFields)
     .eq('id', interviewId)
@@ -153,7 +153,7 @@ async function updateExistingByRecordingId(meeting: FathomMeeting) {
   const interviewData = extractInterviewData(meeting)
 
   // Check what's currently NULL
-  const { data: current } = await supabase
+  const { data: current } = await getSupabase()
     .from('interviews')
     .select('transcript, fathom_summary')
     .eq('fathom_recording_id', meeting.recording_id)
@@ -173,7 +173,7 @@ async function updateExistingByRecordingId(meeting: FathomMeeting) {
 
   updateFields.updated_at = new Date().toISOString()
 
-  const { error } = await supabase
+  const { error } = await getSupabase()
     .from('interviews')
     .update(updateFields)
     .eq('fathom_recording_id', meeting.recording_id)

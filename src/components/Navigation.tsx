@@ -6,12 +6,12 @@ import { usePathname } from 'next/navigation'
 const navItems = [
   { href: '/', label: 'Dashboard' },
   { href: '/funnel', label: 'Funnel' },
-  { href: '/certifications', label: 'Certifications' },
   { href: '/events', label: 'Events' },
   { href: '/community', label: 'Community' },
   { href: '/marketing', label: 'Marketing' },
   { href: '/traffic', label: 'Traffic' },
   { href: '/status', label: 'Status' },
+  { href: '/certifications', label: 'Certifications' },
 ]
 
 export function Navigation() {

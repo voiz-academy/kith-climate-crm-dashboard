@@ -7,7 +7,7 @@ import { Header } from '@/components/Header'
 import { CommunityPageClient } from '@/components/CommunityPageClient'
 import { SyncDiscordButton } from '@/components/SyncDiscordButton'
 
-const MARCH_COHORT = 'March 16th 2026'
+const CURRENT_COHORT = 'May 18th 2026'
 
 async function getCommunityData() {
   const supabase = getSupabase()
@@ -17,10 +17,10 @@ async function getCommunityData() {
     fetchAll<DiscordMember>('discord_members', { orderBy: 'created_at', ascending: false }),
   ])
 
-  // Filter to enrolled customers for the March 16th cohort
+  // Filter to enrolled customers for the current cohort
   // Check both cohort-specific status AND global funnel_status to catch all enrolled
   const enrolledCustomers = allCustomers.filter(c => {
-    const cohortStatus = getCustomerCohortStatus(c, MARCH_COHORT as CohortFilter)
+    const cohortStatus = getCustomerCohortStatus(c, CURRENT_COHORT as CohortFilter)
     return cohortStatus === 'enrolled' || c.funnel_status === 'enrolled'
   })
 

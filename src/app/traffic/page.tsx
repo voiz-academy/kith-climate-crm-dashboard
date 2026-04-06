@@ -1,15 +1,44 @@
-import { fetchAll, PageView } from '@/lib/supabase'
+import { getSupabase, PageView } from '@/lib/supabase'
 import { Header } from '@/components/Header'
 import { StatCard } from '@/components/StatCard'
 import { TrafficChart } from '@/components/TrafficChart'
+import { TrafficDateSelector } from '@/components/TrafficDateSelector'
 
 export const dynamic = 'force-dynamic'
+
+const PAGE_SIZE = 500
+
+async function fetchPageViews(since?: Date): Promise<PageView[]> {
+  const client = getSupabase()
+  const allRows: PageView[] = []
+  let from = 0
+
+  while (true) {
+    let query = client.from('page_views').select('*').range(from, from + PAGE_SIZE - 1)
+      .order('created_at', { ascending: true })
+
+    if (since) {
+      query = query.gte('created_at', since.toISOString())
+    }
+
+    const { data, error } = await query
+    if (error) {
+      console.error('Error fetching page_views:', error)
+      return allRows
+    }
+    if (!data || data.length === 0) break
+    allRows.push(...(data as PageView[]))
+    if (data.length < PAGE_SIZE) break
+    from += PAGE_SIZE
+  }
+
+  return allRows
+}
 
 function parseReferrerDomain(referrer: string | null): string {
   if (!referrer || referrer.trim() === '') return 'Direct'
   try {
     const url = new URL(referrer)
-    // Strip "www." prefix for cleaner display
     return url.hostname.replace(/^www\./, '')
   } catch {
     return referrer
@@ -21,11 +50,30 @@ function formatDate(dateStr: string): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-export default async function TrafficPage() {
-  const pageViews = await fetchAll<PageView>('page_views', {
-    orderBy: 'created_at',
-    ascending: true,
-  })
+type PageProps = {
+  searchParams: Promise<{ range?: string }>
+}
+
+export default async function TrafficPage({ searchParams }: PageProps) {
+  const params = await searchParams
+  const range = params.range ?? '30'
+
+  // Calculate the "since" date based on the range
+  let since: Date | undefined
+  let chartDays: number
+  const now = new Date()
+
+  if (range === 'all') {
+    since = undefined
+    chartDays = 0 // will be calculated from data
+  } else {
+    const days = parseInt(range, 10) || 30
+    since = new Date(now)
+    since.setDate(since.getDate() - days)
+    chartDays = days
+  }
+
+  const pageViews = await fetchPageViews(since)
 
   // --- Stat cards ---
   const totalViews = pageViews.length
@@ -46,15 +94,18 @@ export default async function TrafficPage() {
     pageViews.filter((pv) => pv.utm_campaign).map((pv) => pv.utm_campaign)
   ).size
 
-  // --- Views Over Time (last 30 days) ---
-  const now = new Date()
-  const thirtyDaysAgo = new Date(now)
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+  // --- Views Over Time chart ---
+  // For "all time", calculate days from earliest to latest
+  if (range === 'all' && pageViews.length > 0) {
+    const earliest = new Date(pageViews[0].created_at)
+    chartDays = Math.ceil((now.getTime() - earliest.getTime()) / 86400000) + 1
+    since = earliest
+  }
 
+  const chartStart = since ?? new Date(now.getTime() - 30 * 86400000)
   const dailyCounts = new Map<string, number>()
-  // Pre-fill all 30 days so chart has no gaps
-  for (let i = 0; i < 30; i++) {
-    const d = new Date(thirtyDaysAgo)
+  for (let i = 0; i < chartDays; i++) {
+    const d = new Date(chartStart)
     d.setDate(d.getDate() + i)
     const key = d.toISOString().slice(0, 10)
     dailyCounts.set(key, 0)
@@ -73,6 +124,9 @@ export default async function TrafficPage() {
       date: formatDate(date),
       views,
     }))
+
+  // --- Range label ---
+  const rangeLabel = range === 'all' ? 'All time' : `Last ${range} days`
 
   // --- Top Pages ---
   const pageCounts = new Map<string, number>()
@@ -108,21 +162,24 @@ export default async function TrafficPage() {
       <Header />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-2xl font-semibold text-[var(--color-text-primary)]">
-            Website Traffic
-          </h1>
-          <p className="text-sm text-[var(--color-text-tertiary)] mt-1">
-            Page view analytics from kithclimate.com
-          </p>
+        <div className="mb-8 flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold text-[var(--color-text-primary)]">
+              Website Traffic
+            </h1>
+            <p className="text-sm text-[var(--color-text-tertiary)] mt-1">
+              Page view analytics from kithclimate.com
+            </p>
+          </div>
+          <TrafficDateSelector />
         </div>
 
         {/* Stat cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <StatCard
-            title="Total Page Views"
+            title="Page Views"
             value={totalViews.toLocaleString()}
-            subtitle="All time"
+            subtitle={rangeLabel}
           />
           <StatCard
             title="Unique Pages"
