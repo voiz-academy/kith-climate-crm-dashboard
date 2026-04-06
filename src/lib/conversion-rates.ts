@@ -6,17 +6,20 @@ import { getSupabase } from './supabase'
  * Computes stage-by-stage rates from historical cohorts (Jan + March),
  * weights by lead type (professional/pivoter) and source (workshop/direct),
  * and projects enrollment from the current pipeline with per-person weighting.
+ *
+ * The funnel starts at "applied" — pipeline_to_applied is omitted because
+ * by the time a cohort completes, 100% of pipeline members have a post-registered
+ * status, making the rate uninformative.
  */
 
 // ---- Types ----
 
 export type StageRates = {
-  pipeline_to_applied: number
   applied_to_booked: number
   booked_to_interviewed: number
   interviewed_to_invited: number
   invited_to_enrolled: number
-  overall_pipeline_to_enrolled: number
+  overall_applied_to_enrolled: number
 }
 
 export type LeadQuality = {
@@ -25,7 +28,6 @@ export type LeadQuality = {
   unknown: { count: number; rate: number }
   workshop_attendee: { count: number; rate: number }
   direct: { count: number; rate: number }
-  // Weighted projection from current pipeline composition
   blended_rate: number
 }
 
@@ -49,6 +51,7 @@ export type CohortProjection = {
     applications: number
     interviews_booked: number
     interviews_conducted: number
+    invited_to_enrol: number
     enrollments: number
   }
   total_applications_needed: number
@@ -97,6 +100,8 @@ type PipelineCustomer = {
 /**
  * Compute stage-by-stage conversion rates from historical cohorts.
  * March weighted 2x over January.
+ *
+ * Starts at "applied" since pipeline→applied is always ~100% in completed cohorts.
  */
 async function computeStageRates(
   customers: { cohort_statuses: Record<string, { status: string }> }[]
@@ -129,16 +134,14 @@ async function computeStageRates(
   }
 
   const rates: StageRates = {
-    pipeline_to_applied: w(jan.applied ?? 0, jan.total ?? 0, mar.applied ?? 0, mar.total ?? 0),
     applied_to_booked: w(jan.booked ?? 0, jan.applied ?? 0, mar.booked ?? 0, mar.applied ?? 0),
     booked_to_interviewed: w(jan.interviewed ?? 0, jan.booked ?? 0, mar.interviewed ?? 0, mar.booked ?? 0),
     interviewed_to_invited: w(jan.invited_to_enrol ?? 0, jan.interviewed ?? 0, mar.invited_to_enrol ?? 0, mar.interviewed ?? 0),
     invited_to_enrolled: w(jan.enrolled ?? 0, jan.invited_to_enrol ?? 0, mar.enrolled ?? 0, mar.invited_to_enrol ?? 0),
-    overall_pipeline_to_enrolled: 0,
+    overall_applied_to_enrolled: 0,
   }
 
-  rates.overall_pipeline_to_enrolled =
-    rates.pipeline_to_applied *
+  rates.overall_applied_to_enrolled =
     rates.applied_to_booked *
     rates.booked_to_interviewed *
     rates.interviewed_to_invited *
@@ -149,20 +152,12 @@ async function computeStageRates(
 
 /**
  * Compute per-person enrollment probability based on their lead type and source.
- *
- * Uses a simple multiplicative model:
- * - Base rate = overall pipeline-to-enrolled rate
- * - Lead type multiplier = segment rate / average rate
- * - Workshop multiplier = workshop rate / direct rate (if attended)
- *
- * Capped at 0.85 to avoid over-optimistic projections.
  */
 function enrollmentProbability(
   leadType: string | null,
   attendedWorkshop: boolean,
   overallRate: number
 ): number {
-  // Average rate across all segments (weighted by historical volume)
   const avgLeadRate = (SEGMENT_RATES.professional * 73 + SEGMENT_RATES.pivoter * 94 + SEGMENT_RATES.unknown * 12) / 179
 
   let typeMultiplier: number
@@ -181,12 +176,6 @@ function enrollmentProbability(
 
 /**
  * Project enrollment from the current pipeline with per-person weighting.
- *
- * Instead of applying a flat rate to each stage, we calculate each person's
- * probability of enrolling based on:
- * 1. How far they've progressed (later stages = higher base probability)
- * 2. Their lead type (professional > pivoter > unknown)
- * 3. Whether they attended a workshop (2.3x multiplier)
  */
 function projectWeightedEnrollment(
   pipeline: PipelineCustomer[],
@@ -201,7 +190,7 @@ function projectWeightedEnrollment(
       continue
     }
 
-    // Base probability from their current stage (what % of people at this stage eventually enroll)
+    // Base probability from their current stage
     let stageRate: number
     if (STAGE_REACHED.invited_to_enrol.includes(status)) {
       stageRate = rates.invited_to_enrolled
@@ -212,10 +201,10 @@ function projectWeightedEnrollment(
     } else if (STAGE_REACHED.invited_to_interview.includes(status)) {
       stageRate = rates.applied_to_booked * rates.booked_to_interviewed * rates.interviewed_to_invited * rates.invited_to_enrolled
     } else {
-      stageRate = rates.overall_pipeline_to_enrolled
+      // Applied or earlier — full funnel conversion
+      stageRate = rates.overall_applied_to_enrolled
     }
 
-    // Apply per-person quality weighting
     const qualityAdjusted = enrollmentProbability(person.lead_type, person.attended_workshop, stageRate)
     projected += qualityAdjusted
   }
@@ -232,7 +221,6 @@ export async function computeCohortProjection(
 ): Promise<CohortProjection> {
   const supabase = getSupabase()
 
-  // Fetch customers with enrichment data for quality scoring
   const { data: allCustomers } = await supabase
     .from('customers')
     .select('id, lead_type, cohort_statuses')
@@ -241,7 +229,6 @@ export async function computeCohortProjection(
   const customers = allCustomers ?? []
   const rates = await computeStageRates(customers as { cohort_statuses: Record<string, { status: string }> }[])
 
-  // Get workshop attendance for pipeline customers
   const { data: workshopRegs } = await supabase
     .from('workshop_registrations')
     .select('customer_id')
@@ -256,7 +243,6 @@ export async function computeCohortProjection(
     booked: 0, interviewed: 0, invited_to_enrol: 0, enrolled: 0,
   }
 
-  // Quality counters
   let professionals = 0, pivoters = 0, unknowns = 0
   let workshopAttendees = 0, directApplicants = 0
 
@@ -271,14 +257,12 @@ export async function computeCohortProjection(
     current.total++
     pipeline.push({ status, lead_type: leadType, attended_workshop: attended })
 
-    // Stage counts
     for (const [stage, statuses] of Object.entries(STAGE_REACHED)) {
       if (statuses.includes(status)) {
         current[stage as keyof typeof current]++
       }
     }
 
-    // Quality counts
     if (leadType === 'professional') professionals++
     else if (leadType === 'pivoter') pivoters++
     else unknowns++
@@ -287,11 +271,9 @@ export async function computeCohortProjection(
     else directApplicants++
   }
 
-  // Weighted projection
   const projected_enrolled = projectWeightedEnrollment(pipeline, rates)
 
-  // Blended enrollment rate for the current pipeline mix
-  const blended_rate = current.total > 0 ? projected_enrolled / current.total : rates.overall_pipeline_to_enrolled
+  const blended_rate = current.total > 0 ? projected_enrolled / current.total : rates.overall_applied_to_enrolled
 
   const quality: LeadQuality = {
     professional: { count: professionals, rate: SEGMENT_RATES.professional },
@@ -302,7 +284,6 @@ export async function computeCohortProjection(
     blended_rate,
   }
 
-  // Gap and targets
   const gap = Math.max(0, enrollmentGoal - projected_enrolled)
 
   const now = new Date()
@@ -310,10 +291,8 @@ export async function computeCohortProjection(
     (cohortStartDate.getTime() - now.getTime()) / (7 * 86400000)
   ))
 
-  // Applications needed: gap ÷ blended conversion from application to enrolled
-  // Use the blended rate (which accounts for pipeline quality) rather than flat rate
-  const app_to_enrolled = rates.applied_to_booked * rates.booked_to_interviewed *
-    rates.interviewed_to_invited * rates.invited_to_enrolled
+  // Applications needed to fill the gap
+  const app_to_enrolled = rates.overall_applied_to_enrolled
 
   const total_applications_needed = app_to_enrolled > 0
     ? Math.ceil(gap / app_to_enrolled)
@@ -327,6 +306,9 @@ export async function computeCohortProjection(
     interviews_conducted: Math.ceil(
       (total_applications_needed * rates.applied_to_booked * rates.booked_to_interviewed) / weeks_remaining
     ),
+    invited_to_enrol: Math.ceil(
+      enrollmentGoal / rates.invited_to_enrolled
+    ),
     enrollments: Math.ceil(gap / weeks_remaining),
   }
 
@@ -339,11 +321,10 @@ export async function computeCohortProjection(
 
 function defaultRates(): StageRates {
   return {
-    pipeline_to_applied: 0.95,
     applied_to_booked: 0.78,
     booked_to_interviewed: 0.82,
     interviewed_to_invited: 0.89,
     invited_to_enrolled: 0.45,
-    overall_pipeline_to_enrolled: 0.24,
+    overall_applied_to_enrolled: 0.24,
   }
 }

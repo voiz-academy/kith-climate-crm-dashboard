@@ -284,8 +284,8 @@ export default async function Dashboard() {
 
           <div className="space-y-3">
             <GoalBar current={p.current.enrolled} goal={p.goal} label="Enrolled" />
-            <GoalBar current={p.current.invited_to_enrol} goal={p.goal} label="Invited to Enrol" />
-            <GoalBar current={p.current.total} goal={Math.ceil(p.goal / p.rates.overall_pipeline_to_enrolled)} label={`Pipeline (need ~${Math.ceil(p.goal / p.rates.overall_pipeline_to_enrolled)} at ${Math.round(p.rates.overall_pipeline_to_enrolled * 100)}% conv.)`} />
+            <GoalBar current={p.current.invited_to_enrol} goal={p.weekly_targets.invited_to_enrol} label={`Invited to Enrol (need ~${p.weekly_targets.invited_to_enrol} at ${Math.round(p.rates.invited_to_enrolled * 100)}% conv.)`} />
+            <GoalBar current={p.current.applied} goal={Math.ceil(p.goal / p.rates.overall_applied_to_enrolled)} label={`Applied (need ~${Math.ceil(p.goal / p.rates.overall_applied_to_enrolled)} at ${Math.round(p.rates.overall_applied_to_enrolled * 100)}% conv.)`} />
           </div>
 
           {/* Pipeline waterfall */}
@@ -318,13 +318,12 @@ export default async function Dashboard() {
               Computed from Jan + March cohorts (March weighted 2x)
             </p>
             <div className="space-y-3">
-              <RateBar label="Pipeline → Applied" rate={p.rates.pipeline_to_applied} />
               <RateBar label="Applied → Booked" rate={p.rates.applied_to_booked} />
               <RateBar label="Booked → Interviewed" rate={p.rates.booked_to_interviewed} />
               <RateBar label="Interviewed → Invited" rate={p.rates.interviewed_to_invited} />
               <RateBar label="Invited → Enrolled" rate={p.rates.invited_to_enrolled} />
               <div className="pt-2 border-t border-[var(--color-border-subtle)]">
-                <RateBar label="Overall Pipeline → Enrolled" rate={p.rates.overall_pipeline_to_enrolled} />
+                <RateBar label="Overall Applied → Enrolled" rate={p.rates.overall_applied_to_enrolled} />
               </div>
             </div>
           </div>
