@@ -280,8 +280,16 @@ export default async function Dashboard() {
 
           <div className="space-y-3">
             <GoalBar current={p.current.enrolled} goal={p.goal} label="Enrolled" />
-            <GoalBar current={p.current.invited_to_enrol} goal={p.weekly_targets.invited_to_enrol} label={`Invited to Enrol (need ~${p.weekly_targets.invited_to_enrol} at ${Math.round(p.rates.invited_to_enrolled * 100)}% conv.)`} />
-            <GoalBar current={p.current.applied} goal={Math.ceil(p.goal / p.rates.overall_applied_to_enrolled)} label={`Applied (need ~${Math.ceil(p.goal / p.rates.overall_applied_to_enrolled)} at ${Math.round(p.rates.overall_applied_to_enrolled * 100)}% conv.)`} />
+            <GoalBar
+              current={p.current.invited_to_enrol}
+              goal={p.current.invited_to_enrol + Math.ceil(p.gap / p.rates.invited_to_enrolled)}
+              label={`Invited to Enrol (need ${Math.ceil(p.gap / p.rates.invited_to_enrolled)} more at ${Math.round(p.rates.invited_to_enrolled * 100)}% conv.)`}
+            />
+            <GoalBar
+              current={p.current.applied}
+              goal={p.current.applied + p.total_applications_needed}
+              label={`Applied (need ${p.total_applications_needed} more at ${Math.round(p.rates.overall_applied_to_enrolled * 100)}% conv.)`}
+            />
           </div>
 
           {/* Pipeline waterfall */}
