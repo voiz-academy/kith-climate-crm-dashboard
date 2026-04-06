@@ -377,7 +377,7 @@ export default async function Dashboard() {
         <div className="kith-card p-6 mb-8">
           <h3 className="kith-label mb-1">Pipeline Quality — {TARGET_COHORT}</h3>
           <p className="text-xs text-[var(--color-text-muted)] mb-5">
-            Blended conversion rate: {Math.round(p.quality.blended_rate * 100)}% (vs {Math.round(p.rates.overall_pipeline_to_enrolled * 100)}% average)
+            Blended conversion rate: {Math.round(p.quality.blended_rate * 100)}% (vs {Math.round(p.rates.overall_applied_to_enrolled * 100)}% average)
           </p>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
