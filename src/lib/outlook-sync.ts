@@ -23,7 +23,7 @@
  *   Recipients → matched against customers.email → propose interview_rejected
  */
 
-import { supabase, FUNNEL_RANK, COHORT_OPTIONS } from './supabase'
+import { getSupabase, FUNNEL_RANK, COHORT_OPTIONS } from './supabase'
 
 /** The currently active cohort — used as default when email has no cohort */
 const CURRENT_COHORT = COHORT_OPTIONS[1].value // 'May 18th 2026'
@@ -88,7 +88,7 @@ export async function syncInterviewInvites(
   for (const [recipientEmail, email] of emailMap) {
     try {
       // Find customer by email
-      const { data: customer, error: custErr } = await supabase
+      const { data: customer, error: custErr } = await getSupabase()
         .from('customers')
         .select('id, email, funnel_status')
         .eq('email', recipientEmail)
@@ -96,7 +96,7 @@ export async function syncInterviewInvites(
 
       if (custErr || !customer) {
         // Try matching via cohort_applications
-        const { data: app } = await supabase
+        const { data: app } = await getSupabase()
           .from('cohort_applications')
           .select('customer_id')
           .eq('email', recipientEmail)
@@ -111,7 +111,7 @@ export async function syncInterviewInvites(
         }
 
         // Fetch the customer via application link
-        const { data: linkedCustomer } = await supabase
+        const { data: linkedCustomer } = await getSupabase()
           .from('customers')
           .select('id, email, funnel_status')
           .eq('id', app.customer_id)
@@ -161,7 +161,7 @@ export async function syncEnrollmentInvites(
 
   for (const [recipientEmail, email] of emailMap) {
     try {
-      const { data: customer, error: custErr } = await supabase
+      const { data: customer, error: custErr } = await getSupabase()
         .from('customers')
         .select('id, email, funnel_status')
         .eq('email', recipientEmail)
@@ -204,7 +204,7 @@ export async function syncInterviewRejections(
 
   for (const [recipientEmail, email] of emailMap) {
     try {
-      const { data: customer, error: custErr } = await supabase
+      const { data: customer, error: custErr } = await getSupabase()
         .from('customers')
         .select('id, email, funnel_status')
         .eq('email', recipientEmail)
@@ -242,7 +242,7 @@ export async function syncInterviewReminders(
     const recipientEmail = email.recipientEmail.toLowerCase()
     try {
       // Find customer by email
-      const { data: customer, error: custErr } = await supabase
+      const { data: customer, error: custErr } = await getSupabase()
         .from('customers')
         .select('id, email, funnel_status')
         .eq('email', recipientEmail)
@@ -250,7 +250,7 @@ export async function syncInterviewReminders(
 
       if (custErr || !customer) {
         // Try matching via cohort_applications
-        const { data: app } = await supabase
+        const { data: app } = await getSupabase()
           .from('cohort_applications')
           .select('customer_id')
           .eq('email', recipientEmail)
@@ -308,7 +308,7 @@ async function upsertEmail(
     }
 
     // Deduplicate by customer_id + sent_at + subject
-    const { data: existing } = await supabase
+    const { data: existing } = await getSupabase()
       .from('emails')
       .select('id')
       .eq('customer_id', customerId)
@@ -318,10 +318,10 @@ async function upsertEmail(
       .single()
 
     if (existing) {
-      await supabase.from('emails').update(row).eq('id', existing.id)
+      await getSupabase().from('emails').update(row).eq('id', existing.id)
       return existing.id
     } else {
-      const { data: inserted } = await supabase
+      const { data: inserted } = await getSupabase()
         .from('emails')
         .insert(row)
         .select('id')
@@ -349,7 +349,7 @@ async function autoRejectPendingEmails(
   triggerEvent: string
 ): Promise<number> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('pending_emails')
       .update({
         status: 'rejected',
@@ -404,7 +404,7 @@ async function createPendingChange(
   }
 
   // Check for duplicate pending change (same customer + same proposed status)
-  const { data: existingPending } = await supabase
+  const { data: existingPending } = await getSupabase()
     .from('pending_funnel_changes')
     .select('id')
     .eq('customer_id', customer.id)
@@ -422,7 +422,7 @@ async function createPendingChange(
     return
   }
 
-  const { error } = await supabase
+  const { error } = await getSupabase()
     .from('pending_funnel_changes')
     .insert({
       customer_id: customer.id,

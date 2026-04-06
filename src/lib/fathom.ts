@@ -12,7 +12,7 @@
  * Auth: X-Api-Key header (user-level, accesses recordings by key owner)
  */
 
-import { supabase, getSupabase } from './supabase'
+import { getSupabase } from './supabase'
 import { getSecrets } from './secrets'
 import { findOrCreateCustomer } from './customer-sync'
 
@@ -276,7 +276,7 @@ export function extractInterviewData(meeting: FathomMeeting): MappedInterviewDat
  * @deprecated Use findOrCreateCustomer() from customer-sync.ts instead.
  */
 export async function findCustomerByEmail(email: string): Promise<string | null> {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from('customers')
     .select('id')
     .eq('email', email.toLowerCase())
@@ -337,7 +337,7 @@ export async function upsertInterview(
   }
 
   // Check if interview already exists by fathom_recording_id
-  const { data: existing } = await supabase
+  const { data: existing } = await getSupabase()
     .from('interviews')
     .select('id')
     .eq('fathom_recording_id', data.fathom_recording_id)
@@ -346,7 +346,7 @@ export async function upsertInterview(
 
   if (existing) {
     // Update existing row
-    const { error } = await supabase
+    const { error } = await getSupabase()
       .from('interviews')
       .update(row)
       .eq('fathom_recording_id', data.fathom_recording_id)
@@ -355,7 +355,7 @@ export async function upsertInterview(
     return { action: 'updated' as const, id: existing.id }
   } else {
     // Insert new row
-    const { data: inserted, error } = await supabase
+    const { data: inserted, error } = await getSupabase()
       .from('interviews')
       .insert(row)
       .select('id')
