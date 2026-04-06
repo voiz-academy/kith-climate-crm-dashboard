@@ -15,13 +15,10 @@ const COHORT_START_DATE = new Date('2026-05-18')
 
 // ---- helpers ----
 
-function startOfWeek(d: Date): Date {
+function daysAgo(d: Date, n: number): Date {
   const c = new Date(d)
   c.setHours(0, 0, 0, 0)
-  // Monday-based week
-  const day = c.getDay()
-  const diff = day === 0 ? -6 : 1 - day
-  c.setDate(c.getDate() + diff)
+  c.setDate(c.getDate() - n)
   return c
 }
 
@@ -46,11 +43,10 @@ function weeklyAvg(count: number, weeks: number): number {
 async function getDashboardData() {
   const supabase = getSupabase()
   const now = new Date()
-  const thisWeekStart = startOfWeek(now)
-  const lastWeekStart = new Date(thisWeekStart)
-  lastWeekStart.setDate(lastWeekStart.getDate() - 7)
-  const fourWeeksAgo = new Date(thisWeekStart)
-  fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28)
+  // Rolling 7-day windows (not calendar weeks) so data is always meaningful
+  const thisWeekStart = daysAgo(now, 7)   // last 7 days
+  const lastWeekStart = daysAgo(now, 14)  // 7-14 days ago
+  const fourWeeksAgo = daysAgo(now, 35)   // 7-35 days ago (4 weeks before "this week")
 
   // Fetch all data in parallel
   const [applications, interviews, bookings, payments, emails, projection] = await Promise.all([
@@ -188,7 +184,7 @@ function TrendLine({ current, previous, monthlyAvg, label }: {
     <div className="mt-3 space-y-1">
       {vsLastWeek !== null && (
         <p className={`text-xs ${vsLastWeek >= 0 ? 'text-[#5B9A8B]' : 'text-red-400'}`}>
-          {vsLastWeek >= 0 ? '↑' : '↓'} {Math.abs(vsLastWeek)}% vs last week
+          {vsLastWeek >= 0 ? '↑' : '↓'} {Math.abs(vsLastWeek)}% vs prior 7 days
           <span className="text-[var(--color-text-muted)] ml-1">({previous} {label})</span>
         </p>
       )}
@@ -476,7 +472,7 @@ export default async function Dashboard() {
             <p className="mt-3 text-3xl font-semibold text-[var(--color-text-primary)]">
               {d.trafficThisWeek.toLocaleString()}
             </p>
-            <p className="text-sm text-[var(--color-text-secondary)]">page views this week</p>
+            <p className="text-sm text-[var(--color-text-secondary)]">page views (last 7 days)</p>
             <TrendLine current={d.trafficThisWeek} previous={d.trafficLastWeek} monthlyAvg={d.trafficMonthlyAvg} label="views" />
           </div>
 
@@ -486,7 +482,7 @@ export default async function Dashboard() {
             <p className="mt-3 text-3xl font-semibold text-[var(--color-text-primary)]">
               {d.appsThisWeek}
             </p>
-            <p className="text-sm text-[var(--color-text-secondary)]">applications this week</p>
+            <p className="text-sm text-[var(--color-text-secondary)]">applications (last 7 days)</p>
             <TrendLine current={d.appsThisWeek} previous={d.appsLastWeek} monthlyAvg={d.appsMonthlyAvg} label="apps" />
             <TargetIndicator current={d.appsThisWeek} target={p.weekly_targets.applications} label="week" />
           </div>
@@ -497,7 +493,7 @@ export default async function Dashboard() {
             <p className="mt-3 text-3xl font-semibold text-[var(--color-text-primary)]">
               {d.bookingsThisWeek}
             </p>
-            <p className="text-sm text-[var(--color-text-secondary)]">booked this week</p>
+            <p className="text-sm text-[var(--color-text-secondary)]">booked (last 7 days)</p>
             <TrendLine current={d.bookingsThisWeek} previous={d.bookingsLastWeek} monthlyAvg={d.bookingsMonthlyAvg} label="booked" />
             <TargetIndicator current={d.bookingsThisWeek} target={p.weekly_targets.interviews_booked} label="week" />
           </div>
@@ -508,7 +504,7 @@ export default async function Dashboard() {
             <p className="mt-3 text-3xl font-semibold text-[var(--color-text-primary)]">
               {d.interviewsThisWeek}
             </p>
-            <p className="text-sm text-[var(--color-text-secondary)]">completed this week</p>
+            <p className="text-sm text-[var(--color-text-secondary)]">completed (last 7 days)</p>
             <TrendLine current={d.interviewsThisWeek} previous={d.interviewsLastWeek} monthlyAvg={d.interviewsMonthlyAvg} label="interviews" />
             <TargetIndicator current={d.interviewsThisWeek} target={p.weekly_targets.interviews_conducted} label="week" />
           </div>
@@ -519,7 +515,7 @@ export default async function Dashboard() {
             <p className="mt-3 text-3xl font-semibold text-[#5B9A8B]">
               {d.enrollmentsThisWeek}
             </p>
-            <p className="text-sm text-[var(--color-text-secondary)]">enrolled this week</p>
+            <p className="text-sm text-[var(--color-text-secondary)]">enrolled (last 7 days)</p>
             <TrendLine current={d.enrollmentsThisWeek} previous={d.enrollmentsLastWeek} monthlyAvg={d.enrollmentsMonthlyAvg} label="enrolled" />
             <TargetIndicator current={d.enrollmentsThisWeek} target={p.weekly_targets.enrollments} label="week" />
           </div>
@@ -530,7 +526,7 @@ export default async function Dashboard() {
             <p className="mt-3 text-3xl font-semibold text-[var(--color-text-primary)]">
               {d.emailsThisWeek}
             </p>
-            <p className="text-sm text-[var(--color-text-secondary)]">outbound this week</p>
+            <p className="text-sm text-[var(--color-text-secondary)]">outbound (last 7 days)</p>
             <TrendLine current={d.emailsThisWeek} previous={d.emailsLastWeek} monthlyAvg={d.emailsMonthlyAvg} label="emails" />
           </div>
         </div>
