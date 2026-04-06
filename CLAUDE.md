@@ -147,6 +147,14 @@ Website traffic from kithclimate.com. Fields: page_path, page_title, referrer, u
 - **Supabase Edge Function Secrets**: FATHOM_API_KEY, FATHOM_API_KEY_DIEGO, FATHOM_WEBHOOK_SECRET, FATHOM_WEBHOOK_SECRET_DIEGO, STRIPE_WEBHOOK_SECRET, STRIPE_KITH_SECRET_KEY, CALENDLY_API_TOKEN
 - **Cloudflare Workers env vars**: FATHOM_API_KEY, FATHOM_API_KEY_DIEGO, SUPABASE_URL, SUPABASE_ANON_KEY, Auth0 config
 
+## Conversion & Attribution System
+
+The dashboard homepage is a goal-driven status view with dynamic enrollment projections, per-person weighted conversion rates, and a recommendations engine. See `_reference/conversion-attribution-system.md` for full methodology, segment rates, attribution findings, and update procedures.
+
+Key files: `src/lib/conversion-rates.ts` (rates + projections), `src/lib/recommendations.ts` (action items), `src/app/page.tsx` (dashboard).
+
+When a cohort completes: update `REFERENCE_COHORTS`, refresh `SEGMENT_RATES`, and update `TARGET_COHORT` / `ENROLLMENT_GOAL` / `COHORT_START_DATE` in `page.tsx`.
+
 ## Deployment
 
 - Dashboard deployed automatically via GitHub Actions on push to `main`
