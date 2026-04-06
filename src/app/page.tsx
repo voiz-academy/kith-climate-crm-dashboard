@@ -311,7 +311,7 @@ export default async function Dashboard() {
           <div className="kith-card p-6">
             <h3 className="kith-label mb-4">Historical Conversion Rates</h3>
             <p className="text-xs text-[var(--color-text-muted)] mb-4">
-              Computed from Jan + March cohorts (March weighted 2x)
+              Based on March 16th 2026 cohort (108 pipeline → 28 enrolled)
             </p>
             <div className="space-y-3">
               <RateBar label="Applied → Booked" rate={p.rates.applied_to_booked} />

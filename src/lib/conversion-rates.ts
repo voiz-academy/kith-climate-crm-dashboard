@@ -59,7 +59,9 @@ export type CohortProjection = {
 
 // ---- Constants ----
 
-const REFERENCE_COHORTS = ['January 19th 2026', 'March 16th 2026']
+// March only — January had an informal process (no structured applications/interviews)
+// and its rates distort the model. March is representative of the current process.
+const REFERENCE_COHORTS = ['March 16th 2026']
 
 // Statuses that indicate someone reached at least this stage
 const STAGE_REACHED: Record<string, string[]> = {
@@ -98,46 +100,41 @@ type PipelineCustomer = {
 // ---- Core computation ----
 
 /**
- * Compute stage-by-stage conversion rates from historical cohorts.
- * March weighted 2x over January.
+ * Compute stage-by-stage conversion rates from reference cohorts.
  *
  * Starts at "applied" since pipeline→applied is always ~100% in completed cohorts.
+ * Rates are computed by summing numerators/denominators across all reference cohorts.
  */
 async function computeStageRates(
   customers: { cohort_statuses: Record<string, { status: string }> }[]
 ): Promise<StageRates> {
   if (customers.length === 0) return defaultRates()
 
-  const cohortCounts: Record<string, Record<string, number>> = {}
+  // Aggregate counts across all reference cohorts
+  const totals: Record<string, number> = {}
+  for (const [stage] of Object.entries(STAGE_REACHED)) {
+    totals[stage] = 0
+  }
 
   for (const cohort of REFERENCE_COHORTS) {
-    const counts: Record<string, number> = { total: 0 }
     for (const [stage, statuses] of Object.entries(STAGE_REACHED)) {
-      counts[stage] = 0
       for (const c of customers) {
         const entry = c.cohort_statuses?.[cohort]
         if (!entry) continue
-        if (statuses.includes(entry.status)) counts[stage]++
+        if (statuses.includes(entry.status)) totals[stage]++
       }
     }
-    counts.total = customers.filter(c => c.cohort_statuses?.[cohort] != null).length
-    cohortCounts[cohort] = counts
   }
 
-  const jan = cohortCounts['January 19th 2026'] ?? {}
-  const mar = cohortCounts['March 16th 2026'] ?? {}
-
-  function w(jn: number, jd: number, mn: number, md: number): number {
-    const num = jn + mn * 2
-    const den = jd + md * 2
-    return den > 0 ? num / den : 0
+  function rate(numerator: number, denominator: number): number {
+    return denominator > 0 ? numerator / denominator : 0
   }
 
   const rates: StageRates = {
-    applied_to_booked: w(jan.booked ?? 0, jan.applied ?? 0, mar.booked ?? 0, mar.applied ?? 0),
-    booked_to_interviewed: w(jan.interviewed ?? 0, jan.booked ?? 0, mar.interviewed ?? 0, mar.booked ?? 0),
-    interviewed_to_invited: w(jan.invited_to_enrol ?? 0, jan.interviewed ?? 0, mar.invited_to_enrol ?? 0, mar.interviewed ?? 0),
-    invited_to_enrolled: w(jan.enrolled ?? 0, jan.invited_to_enrol ?? 0, mar.enrolled ?? 0, mar.invited_to_enrol ?? 0),
+    applied_to_booked: rate(totals.booked, totals.applied),
+    booked_to_interviewed: rate(totals.interviewed, totals.booked),
+    interviewed_to_invited: rate(totals.invited_to_enrol, totals.interviewed),
+    invited_to_enrolled: rate(totals.enrolled, totals.invited_to_enrol),
     overall_applied_to_enrolled: 0,
   }
 
