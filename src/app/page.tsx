@@ -268,7 +268,8 @@ export default async function Dashboard() {
               <p className="text-xs text-[var(--color-text-muted)] mt-1">
                 {p.weeks_remaining} weeks remaining · Projected {p.projected_enrolled} enrolled from current pipeline
                 {p.gap > 0 && (
-                  <> · Need {p.total_applications_needed} more applications ({p.weekly_targets.applications}/week)</>
+                  <> · Need {p.total_applications_needed} more pipeline entries ({p.weekly_targets.applications}/week)</>
+
                 )}
               </p>
             </div>
@@ -288,7 +289,7 @@ export default async function Dashboard() {
             <GoalBar
               current={p.current.applied}
               goal={p.current.applied + p.total_applications_needed}
-              label={`Applied (need ${p.total_applications_needed} more at ${Math.round(p.rates.overall_applied_to_enrolled * 100)}% conv.)`}
+              label={`Pipeline Entries (need ${p.total_applications_needed} more at ${Math.round(p.rates.overall_applied_to_enrolled * 100)}% conv.)`}
             />
           </div>
 
@@ -343,7 +344,7 @@ export default async function Dashboard() {
             </p>
             <div className="space-y-4">
               {[
-                { label: 'Applications', target: p.weekly_targets.applications, current: d.appsThisWeek },
+                { label: 'Pipeline Entries', target: p.weekly_targets.applications, current: d.appsThisWeek },
                 { label: 'Interviews Booked', target: p.weekly_targets.interviews_booked, current: d.bookingsThisWeek },
                 { label: 'Interviews Done', target: p.weekly_targets.interviews_conducted, current: d.interviewsThisWeek },
                 { label: 'Enrollments', target: p.weekly_targets.enrollments, current: d.enrollmentsThisWeek },
@@ -484,13 +485,13 @@ export default async function Dashboard() {
             <TrendLine current={d.trafficThisWeek} previous={d.trafficLastWeek} monthlyAvg={d.trafficMonthlyAvg} label="views" />
           </div>
 
-          {/* Applications */}
+          {/* Pipeline Entries */}
           <div className="kith-card p-6">
-            <h3 className="kith-label">Applications</h3>
+            <h3 className="kith-label">Pipeline Entries</h3>
             <p className="mt-3 text-3xl font-semibold text-[var(--color-text-primary)]">
               {d.appsThisWeek}
             </p>
-            <p className="text-sm text-[var(--color-text-secondary)]">applications (last 7 days)</p>
+            <p className="text-sm text-[var(--color-text-secondary)]">new entries (last 7 days)</p>
             <TrendLine current={d.appsThisWeek} previous={d.appsLastWeek} monthlyAvg={d.appsMonthlyAvg} label="apps" />
             <TargetIndicator current={d.appsThisWeek} target={p.weekly_targets.applications} label="week" />
           </div>

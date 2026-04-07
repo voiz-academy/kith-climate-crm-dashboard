@@ -115,8 +115,8 @@ export async function generateRecommendations(input: RecommendationInput): Promi
     const deficit = input.weeklyAppTarget - input.appsThisWeek
     recs.push({
       priority: 'medium',
-      label: 'Accelerate application flow',
-      detail: `${input.appsThisWeek} applications this week vs target of ${input.weeklyAppTarget}. ${deficit} behind pace. The top application drivers historically are: workshop attendance (same-day applications), LinkedIn outreach, and email campaigns to registered leads.`,
+      label: 'Accelerate pipeline entries',
+      detail: `${input.appsThisWeek} pipeline entries this week vs target of ${input.weeklyAppTarget}. ${deficit} behind pace. Pipeline entries come from: formal applications, workshop direct-invites, and re-engagement of previous cohort candidates. Top drivers: workshop attendance, LinkedIn outreach, and email campaigns to registered leads.`,
       metric: `${deficit} behind weekly target`,
     })
   }
