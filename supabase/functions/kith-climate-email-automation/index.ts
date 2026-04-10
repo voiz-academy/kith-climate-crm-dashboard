@@ -111,6 +111,24 @@ async function handleFunnelChange(payload: FunnelChangePayload, log: (msg: strin
     return
   }
 
+  // Don't send emails on backward funnel movements (e.g., booked → invited_to_interview
+  // when a Calendly booking is cancelled before a reschedule re-books them)
+  const FUNNEL_RANKS: Record<string, number> = {
+    registered: 1,
+    applied: 2, application_rejected: 2,
+    invited_to_interview: 3,
+    booked: 4,
+    interviewed: 5, no_show: 5, interview_rejected: 5,
+    invited_to_enrol: 6, offer_expired: 6, requested_discount: 6,
+    enrolled: 7,
+  }
+  const oldRank = FUNNEL_RANKS[old_status] ?? 0
+  const newRank = FUNNEL_RANKS[new_status] ?? 0
+  if (newRank < oldRank) {
+    log(`Skipping email for backward funnel movement: ${old_status} (${oldRank}) → ${new_status} (${newRank})`)
+    return
+  }
+
   // Find templates matching this funnel trigger
   log(`Looking up templates with funnel_trigger = '${new_status}'`)
   const { data: templates, error: tmplErr } = await supabase

@@ -580,7 +580,7 @@ export function FunnelCRM({
   function renderStageColumns(stage: FunnelStatus): string[] {
     switch (stage) {
       case 'applied': return ['Applied On', 'Role', 'UTM Source', 'Actions']
-      case 'invited_to_interview': return ['Invite Sent', 'Company', 'Reminded', 'Actions']
+      case 'invited_to_interview': return ['Applied On', 'Company', 'Actions']
       case 'booked': return ['Scheduled', 'Status', 'Actions']
       case 'interviewed': return ['Interviewed On', 'Outcome', 'Data', 'Interviewer', 'Actions']
       case 'invited_to_enrol': return ['Invite Sent', 'Deadline', 'Data', 'Company', 'Actions']
@@ -626,24 +626,14 @@ export function FunnelCRM({
         )
       }
       case 'invited_to_interview': {
-        const invite = interviewInvitesByCustomer[customer.id]
-        const reminderCount = reminderCountsByCustomer[customer.id] || 0
+        const app = applicationsByCustomer[customer.id]
         return (
           <>
             <td className="px-4 py-2.5 whitespace-nowrap text-sm text-[var(--color-text-secondary)]">
-              {formatDate(invite?.sent_at)}
+              {formatDate(app?.created_at)}
             </td>
             <td className="px-4 py-2.5 text-sm text-[var(--color-text-secondary)] max-w-[180px] truncate">
               {customer.linkedin_company || customer.company_domain || '-'}
-            </td>
-            <td className="px-4 py-2.5 whitespace-nowrap text-sm text-center">
-              {reminderCount > 0 ? (
-                <span className="px-2 py-0.5 text-xs font-medium rounded bg-[rgba(234,179,8,0.15)] text-[#EAB308]">
-                  {reminderCount}
-                </span>
-              ) : (
-                <span className="text-[var(--color-text-muted)]">0</span>
-              )}
             </td>
             <td className="px-4 py-2.5 whitespace-nowrap">
               <select
@@ -895,9 +885,9 @@ export function FunnelCRM({
     switch (stage) {
       case 'invited_to_interview': {
         return [...stageCustomers].sort((a, b) => {
-          const aDate = interviewInvitesByCustomer[a.id]?.sent_at || ''
-          const bDate = interviewInvitesByCustomer[b.id]?.sent_at || ''
-          return bDate.localeCompare(aDate) // newest first (oldest at bottom)
+          const aDate = applicationsByCustomer[a.id]?.created_at || ''
+          const bDate = applicationsByCustomer[b.id]?.created_at || ''
+          return aDate.localeCompare(bDate) // oldest first (longest waiting at top)
         })
       }
       case 'booked': {
