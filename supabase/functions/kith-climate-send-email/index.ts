@@ -48,7 +48,23 @@ function personaliseContent(
   out = out.replace(/{email}/g, customer.email || "");
   out = out.replace(/{company}/g, customer.linkedin_company || customer.company_domain || "");
   out = out.replace(/{cohort}/g, cohort || "");
-  out = out.replace(/{enrollment_deadline}/g, customer.enrollment_deadline || "");
+  // Enrollment deadline: use stored value, or calculate 5 business days from now as fallback
+  let deadline = customer.enrollment_deadline || "";
+  if (!deadline) {
+    const d = new Date();
+    let added = 0;
+    while (added < 5) {
+      d.setDate(d.getDate() + 1);
+      if (d.getDay() !== 0 && d.getDay() !== 6) added++;
+    }
+    deadline = d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+  }
+  out = out.replace(/{enrollment_deadline}/g, deadline);
+
+  // Interviewer: use booking data if available, otherwise default to Ben Hillier
+  out = out.replace(/{interviewer_name}/g, customer._booking_interviewer_name || "Ben Hillier");
+  out = out.replace(/{interviewer_title}/g, "Programme Director");
+  out = out.replace(/{interviewer_email}/g, customer._booking_interviewer_email || "ben@kithailab.com");
 
   const currentDate = new Date().toLocaleDateString("en-US", {
     year: "numeric",
@@ -57,6 +73,90 @@ function personaliseContent(
   });
   out = out.replace(/{current_date}/g, currentDate);
   out = out.replace(/{current_year}/g, new Date().getFullYear().toString());
+
+  return out;
+}
+
+// Personalise template content with booking data from interviews_booked
+function personaliseBookingContent(
+  content: string,
+  booking: Record<string, any>,
+): string {
+  if (!booking) return content;
+
+  let out = content;
+
+  // Booking status
+  const isCancelled = !!booking.cancelled_at;
+  const status = isCancelled ? "Cancelled" : "Booked";
+  const statusColor = isCancelled ? "#c0392b" : "#5B9A8B";
+  out = out.replace(/{booking_status}/g, status);
+  out = out.replace(/{booking_status_color}/g, statusColor);
+
+  // Interview date — format nicely
+  if (booking.scheduled_at) {
+    const d = new Date(booking.scheduled_at);
+    const formatted = d.toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    }) + " at " + d.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      timeZone: "America/New_York",
+      timeZoneName: "short",
+    });
+    out = out.replace(/{interview_date}/g, formatted);
+  } else {
+    out = out.replace(/{interview_date}/g, "");
+  }
+
+  // Cancel reason
+  out = out.replace(/{cancel_reason}/g, booking.cancel_reason || "N/A");
+
+  // Calendly reference
+  out = out.replace(/{calendly_event_uri}/g, booking.calendly_event_uri || "");
+
+  return out;
+}
+
+// Personalise template content with cohort_applications data
+function personaliseApplicationContent(
+  content: string,
+  application: Record<string, any>,
+): string {
+  if (!application) return content;
+
+  let out = content;
+
+  out = out.replace(/{application_role}/g, application.role || "");
+  out = out.replace(/{application_background}/g, application.background || "");
+  out = out.replace(/{application_ai_view}/g, application.ai_view || "");
+  out = out.replace(/{application_goals}/g, application.goals || "");
+
+  const budgetConfirmed = application.budget_confirmed;
+  const budgetText = budgetConfirmed === true
+    ? "Yes"
+    : budgetConfirmed === false
+      ? "No"
+      : budgetConfirmed ?? "";
+  out = out.replace(/{application_budget_confirmed}/g, String(budgetText));
+
+  if (application.created_at) {
+    const d = new Date(application.created_at).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+    out = out.replace(/{application_date}/g, d);
+  } else {
+    out = out.replace(/{application_date}/g, "");
+  }
+
+  out = out.replace(/{utm_source}/g, application.utm_source || "");
+  out = out.replace(/{utm_medium}/g, application.utm_medium || "");
+  out = out.replace(/{utm_campaign}/g, application.utm_campaign || "");
 
   return out;
 }
@@ -297,9 +397,54 @@ serve(async (req) => {
           customer = c;
         }
 
+        // If booking placeholders exist, fetch latest booking and attach interviewer to customer
+        const hasBookingPlaceholders = tmpl.content.includes("{booking_status}") || tmpl.content.includes("{interview_date}") || tmpl.subject.includes("{interview_date}");
+        let latestBooking: Record<string, any> | null = null;
+        if (custId && hasBookingPlaceholders) {
+          const { data: booking } = await supabase
+            .from("interviews_booked")
+            .select("*")
+            .eq("customer_id", custId)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .single();
+          latestBooking = booking;
+          // Attach booking interviewer to customer so personaliseContent uses it
+          if (booking && customer) {
+            customer._booking_interviewer_name = booking.interviewer_name;
+            customer._booking_interviewer_email = booking.interviewer_email;
+          }
+        }
+
         let personalised = customer
           ? { subject: personaliseContent(tmpl.subject, customer, cohort), html: personaliseContent(tmpl.content, customer, cohort) }
           : { subject: tmpl.subject, html: tmpl.content };
+
+        // If booking placeholders remain, personalise with booking data
+        if (latestBooking) {
+          personalised = {
+            subject: personaliseBookingContent(personalised.subject, latestBooking),
+            html: personaliseBookingContent(personalised.html, latestBooking),
+          };
+        }
+
+        // If application placeholders remain, fetch latest application and personalise
+        if (custId && (personalised.subject.includes("{application_") || personalised.html.includes("{application_") || personalised.subject.includes("{utm_") || personalised.html.includes("{utm_"))) {
+          const { data: latestApplication } = await supabase
+            .from("cohort_applications")
+            .select("*")
+            .eq("customer_id", custId)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .single();
+
+          if (latestApplication) {
+            personalised = {
+              subject: personaliseApplicationContent(personalised.subject, latestApplication),
+              html: personaliseApplicationContent(personalised.html, latestApplication),
+            };
+          }
+        }
 
         // If payment placeholders remain, fetch latest payment and personalise
         if (custId && (personalised.subject.includes("{payment_") || personalised.html.includes("{payment_") || personalised.subject.includes("{amount}") || personalised.html.includes("{amount}") || personalised.html.includes("{stripe_"))) {
