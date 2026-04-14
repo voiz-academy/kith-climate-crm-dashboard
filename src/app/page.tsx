@@ -303,6 +303,17 @@ export default async function Dashboard() {
                 />
               )
             })()}
+            {p.rates.registered_to_enrolled > 0 && (() => {
+              const regsNeeded = Math.ceil(p.goal / p.rates.registered_to_enrolled)
+              const regsRemaining = Math.max(0, regsNeeded - p.event_funnel.unique_registrants)
+              return (
+                <GoalBar
+                  current={p.event_funnel.unique_registrants}
+                  goal={regsNeeded}
+                  label={`Event Registrations (need ${regsRemaining} more at ${Math.round(p.rates.registered_to_enrolled * 100)}% conv.)`}
+                />
+              )
+            })()}
           </div>
 
           {/* Pipeline waterfall */}
