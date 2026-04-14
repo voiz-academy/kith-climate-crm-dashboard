@@ -242,15 +242,21 @@ export async function computeCohortProjection(
   const allRegs = await fetchAll<WorkshopRegistration>('workshop_registrations')
   const attendedSet = new Set(allRegs.filter(r => r.attended).map(r => r.customer_id))
 
-  // Only count registrations from the current enrollment window (after last cohort)
-  // for the event→enrolled rate and goal bar. Earlier registrations fed the previous cohort.
+  // Split registrations into two windows:
+  // - Historical (before current window): used to compute the rate from completed cohort outcomes
+  // - Current (after current window): used as the "current" count on the goal bar
+  const historicalRegs = allRegs
+    .filter(r => r.event_date < CURRENT_WINDOW_START)
+    .map(r => ({ customer_id: r.customer_id }))
   const currentWindowRegs = allRegs
     .filter(r => r.event_date >= CURRENT_WINDOW_START)
-    .map(r => ({ customer_id: r.customer_id, attended: r.attended }))
+    .map(r => ({ customer_id: r.customer_id }))
 
   const eventStage = computeEventStageRates(
+    historicalRegs,
     currentWindowRegs,
-    customers as { id: string; cohort_statuses: Record<string, { status: string }> | null }[]
+    customers as { id: string; cohort_statuses: Record<string, { status: string }> | null }[],
+    REFERENCE_COHORTS
   )
   rates.registered_to_enrolled = eventStage.rate
 
@@ -354,41 +360,54 @@ function defaultRates(): StageRates {
 }
 
 /**
- * Compute single event-to-enrollment conversion rate from workshop_registrations.
+ * Compute event-to-enrollment conversion rate from HISTORICAL data,
+ * using the same reference cohort pattern as the other funnel rates.
  *
- * Rate = unique registrants who eventually enrolled (any cohort) / unique registrants.
- * "Enrolled" means having any cohort_statuses entry with status = 'enrolled'.
+ * Rate: from registrations BEFORE the current window, how many unique
+ * registrants enrolled in a reference cohort? This gives a stable,
+ * non-circular rate based on completed cohort outcomes.
+ *
+ * Current count: unique registrants in the CURRENT window (for the goal bar).
  */
 function computeEventStageRates(
-  registrations: { customer_id: string; attended: boolean }[],
-  customers: { id: string; cohort_statuses: Record<string, { status: string }> | null }[]
+  historicalRegs: { customer_id: string }[],
+  currentWindowRegs: { customer_id: string }[],
+  customers: { id: string; cohort_statuses: Record<string, { status: string }> | null }[],
+  referenceCohorts: string[]
 ): { rate: number; counts: EventFunnelCounts } {
-  const registrantIds = new Set<string>()
-  for (const r of registrations) {
-    registrantIds.add(r.customer_id)
+  // Historical: unique registrants from the reference cohort window
+  const historicalRegistrantIds = new Set<string>()
+  for (const r of historicalRegs) {
+    historicalRegistrantIds.add(r.customer_id)
   }
 
-  // Build set of customers who enrolled in any cohort
+  // Current: unique registrants in the current enrollment window
+  const currentRegistrantIds = new Set<string>()
+  for (const r of currentWindowRegs) {
+    currentRegistrantIds.add(r.customer_id)
+  }
+
+  // Build set of customers who enrolled in a reference cohort
   const enrolledIds = new Set<string>()
   for (const c of customers) {
     const statuses = c.cohort_statuses
     if (!statuses) continue
-    for (const entry of Object.values(statuses)) {
-      if (entry.status === 'enrolled') {
+    for (const cohort of referenceCohorts) {
+      if (statuses[cohort]?.status === 'enrolled') {
         enrolledIds.add(c.id)
         break
       }
     }
   }
 
-  let registrantsEnrolled = 0
-  registrantIds.forEach(id => { if (enrolledIds.has(id)) registrantsEnrolled++ })
+  let historicalEnrolled = 0
+  historicalRegistrantIds.forEach(id => { if (enrolledIds.has(id)) historicalEnrolled++ })
 
   return {
-    rate: registrantIds.size > 0 ? registrantsEnrolled / registrantIds.size : 0,
+    rate: historicalRegistrantIds.size > 0 ? historicalEnrolled / historicalRegistrantIds.size : 0,
     counts: {
-      unique_registrants: registrantIds.size,
-      registrants_who_enrolled: registrantsEnrolled,
+      unique_registrants: currentRegistrantIds.size,
+      registrants_who_enrolled: historicalEnrolled,
     },
   }
 }
