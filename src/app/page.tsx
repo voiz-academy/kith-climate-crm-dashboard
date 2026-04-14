@@ -303,16 +303,6 @@ export default async function Dashboard() {
                 />
               )
             })()}
-            {p.rates.registered_to_enrolled > 0 && (() => {
-              const regsNeeded = Math.ceil(p.goal / p.rates.registered_to_enrolled)
-              return (
-                <GoalBar
-                  current={p.event_funnel.unique_registrants}
-                  goal={regsNeeded}
-                  label={`Event Registrations (need ${Math.max(0, regsNeeded - p.event_funnel.unique_registrants)} more at ${Math.round(p.rates.registered_to_enrolled * 100)}% conv.)`}
-                />
-              )
-            })()}
           </div>
 
           {/* Pipeline waterfall */}
@@ -372,16 +362,12 @@ export default async function Dashboard() {
             </p>
             <div className="space-y-4">
               {[
-                ...(p.weekly_targets.event_registrations > 0
-                  ? [{ label: 'Event Registrations', target: p.weekly_targets.event_registrations, current: null as number | null }]
-                  : []),
-                { label: 'Pipeline Entries', target: p.weekly_targets.applications, current: d.appsThisWeek as number | null },
-                { label: 'Interviews Booked', target: p.weekly_targets.interviews_booked, current: d.bookingsThisWeek as number | null },
-                { label: 'Interviews Done', target: p.weekly_targets.interviews_conducted, current: d.interviewsThisWeek as number | null },
-                { label: 'Enrollments', target: p.weekly_targets.enrollments, current: d.enrollmentsThisWeek as number | null },
+                { label: 'Pipeline Entries', target: p.weekly_targets.applications, current: d.appsThisWeek },
+                { label: 'Interviews Booked', target: p.weekly_targets.interviews_booked, current: d.bookingsThisWeek },
+                { label: 'Interviews Done', target: p.weekly_targets.interviews_conducted, current: d.interviewsThisWeek },
+                { label: 'Enrollments', target: p.weekly_targets.enrollments, current: d.enrollmentsThisWeek },
               ].map((t) => {
-                const hasTracking = t.current !== null
-                const onTrack = hasTracking && t.current! >= t.target
+                const onTrack = t.current >= t.target
                 return (
                   <div key={t.label} className="flex items-center justify-between">
                     <div>
@@ -389,22 +375,16 @@ export default async function Dashboard() {
                       <span className="text-xs text-[var(--color-text-muted)] ml-2">target: {t.target}/week</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      {hasTracking ? (
-                        <>
-                          <span className={`text-lg font-semibold ${onTrack ? 'text-[#5B9A8B]' : 'text-[var(--color-text-primary)]'}`}>
-                            {t.current}
-                          </span>
-                          <span className={`text-xs px-1.5 py-0.5 rounded ${
-                            onTrack
-                              ? 'bg-[rgba(91,154,139,0.15)] text-[#5B9A8B]'
-                              : 'bg-[rgba(232,230,227,0.06)] text-[var(--color-text-muted)]'
-                          }`}>
-                            {onTrack ? 'on track' : `${t.target - t.current!} behind`}
-                          </span>
-                        </>
-                      ) : (
-                        <span className="text-xs text-[var(--color-text-muted)]">via Luma</span>
-                      )}
+                      <span className={`text-lg font-semibold ${onTrack ? 'text-[#5B9A8B]' : 'text-[var(--color-text-primary)]'}`}>
+                        {t.current}
+                      </span>
+                      <span className={`text-xs px-1.5 py-0.5 rounded ${
+                        onTrack
+                          ? 'bg-[rgba(91,154,139,0.15)] text-[#5B9A8B]'
+                          : 'bg-[rgba(232,230,227,0.06)] text-[var(--color-text-muted)]'
+                      }`}>
+                        {onTrack ? 'on track' : `${t.target - t.current} behind`}
+                      </span>
                     </div>
                   </div>
                 )
