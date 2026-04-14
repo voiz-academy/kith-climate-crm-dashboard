@@ -320,13 +320,23 @@ export default async function Dashboard() {
           <div className="kith-card p-6">
             <h3 className="kith-label mb-4">Historical Conversion Rates</h3>
             <p className="text-xs text-[var(--color-text-muted)] mb-4">
-              Based on March 16th 2026 cohort (108 pipeline → 28 enrolled)
+              Event stages: all registrations ({p.event_funnel.total_registrations} regs, {p.event_funnel.unique_attendees} unique attendees).
+              Cohort funnel: March 16th 2026 (108 pipeline → 28 enrolled).
             </p>
             <div className="space-y-3">
-              <RateBar label="Applied → Booked" rate={p.rates.applied_to_booked} />
-              <RateBar label="Booked → Interviewed" rate={p.rates.booked_to_interviewed} />
-              <RateBar label="Interviewed → Invited" rate={p.rates.interviewed_to_invited} />
-              <RateBar label="Invited → Enrolled" rate={p.rates.invited_to_enrolled} />
+              <div className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">Top of Funnel (Events)</div>
+              <RateBar label="Registered → Attended" rate={p.rates.registered_to_attended} />
+              <RateBar label="Attended → Applied" rate={p.rates.attended_to_applied} />
+              <RateBar label="Reg. only → Applied" rate={p.rates.registered_only_to_applied} />
+              <div className="pt-3 border-t border-[var(--color-border-subtle)]">
+                <div className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-3">Cohort Funnel</div>
+                <div className="space-y-3">
+                  <RateBar label="Applied → Booked" rate={p.rates.applied_to_booked} />
+                  <RateBar label="Booked → Interviewed" rate={p.rates.booked_to_interviewed} />
+                  <RateBar label="Interviewed → Invited" rate={p.rates.interviewed_to_invited} />
+                  <RateBar label="Invited → Enrolled" rate={p.rates.invited_to_enrolled} />
+                </div>
+              </div>
               <div className="pt-2 border-t border-[var(--color-border-subtle)]">
                 <RateBar label="Overall Applied → Enrolled" rate={p.rates.overall_applied_to_enrolled} />
               </div>
@@ -338,8 +348,8 @@ export default async function Dashboard() {
             <h3 className="kith-label mb-4">Weekly Targets to Close Gap</h3>
             <p className="text-xs text-[var(--color-text-muted)] mb-4">
               {p.gap > 0
-                ? `${p.gap} more enrollments needed over ${p.weeks_remaining} weeks`
-                : 'On track — current pipeline projects to meet goal'
+                ? `Current pipeline projects ${Math.round(p.projected_enrolled)} enrolled. Need ${p.gap} more over ${p.weeks_remaining} weeks to hit goal of ${p.goal}.`
+                : `On track — current pipeline projects ${Math.round(p.projected_enrolled)} of ${p.goal} enrolled.`
               }
             </p>
             <div className="space-y-4">

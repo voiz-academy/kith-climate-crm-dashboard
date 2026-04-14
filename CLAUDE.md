@@ -34,6 +34,7 @@ The system has two runtime environments:
 - `kith-climate-email-automation` — DB trigger for funnel changes → queue/send automated emails (receives cohort from trigger)
 - `kith-climate-send-email` — Send emails via Resend, personalise with `{cohort}` variable, record in emails table
 - `kith-climate-pending-email-review` — Approve/reject pending emails (called from dashboard via proxy)
+- `kith-climate-resend-webhook` — Resend delivery/open/click/bounce/complaint events → update emails table engagement columns. Verified via svix signature. Secret: `RESEND_WEBHOOK_SECRET`.
 
 ### Architecture Principles
 - **Database mutations on RLS-protected tables must go through Supabase Edge Functions**, not Cloudflare Workers API routes. Dashboard uses anon key (subject to RLS); edge functions use service role key (bypasses RLS).
@@ -92,7 +93,7 @@ The `notify_email_on_funnel_change` DB trigger diffs `OLD` vs `NEW` `cohort_stat
 
 ### customers (Central Hub)
 Single source of truth for all leads/customers. Key fields:
-- `funnel_status` — registered → applied → invited_to_interview → booked → interviewed → invited_to_enrol → enrolled (plus: application_rejected, interview_rejected, no_show, offer_expired, not_invited)
+- `funnel_status` — lead → registered → applied → invited_to_interview → booked → interviewed → invited_to_enrol → enrolled (plus: application_rejected, interview_rejected, no_show, offer_expired, not_invited)
 - `cohort_statuses` — JSONB with per-cohort status entries (see Multi-Cohort System above)
 - `enrichment_status` — pending → enriching → enriched → failed → skipped
 - `lead_type` — professional, pivoter, unknown
@@ -127,6 +128,7 @@ Website traffic from kithclimate.com. Fields: page_path, page_title, referrer, u
 
 | Status | Rank |
 |--------|------|
+| lead | 0 |
 | registered | 1 |
 | applied (application_rejected) | 2 |
 | invited_to_interview | 3 |
@@ -159,3 +161,4 @@ When a cohort completes: update `REFERENCE_COHORTS`, refresh `SEGMENT_RATES`, an
 
 - Dashboard deployed automatically via GitHub Actions on push to `main`
 - Supabase edge functions must be deployed manually: `supabase functions deploy <function-name>`
+- **CRITICAL: `verify_jwt` settings are defined in `supabase/config.toml`.** External webhook functions (Stripe, Calendly, Fathom) MUST have `verify_jwt = false` — their callers do not send JWTs. When deploying via MCP (`deploy_edge_function`), always check `config.toml` for the correct `verify_jwt` value. Never default to `true` for webhook functions.

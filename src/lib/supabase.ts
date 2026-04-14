@@ -35,6 +35,7 @@ export function getSupabase(): AnySupabaseClient {
 
 // Funnel status types and helpers
 export type FunnelStatus =
+  | 'lead'
   | 'registered'
   | 'applied'
   | 'application_rejected'
@@ -52,7 +53,7 @@ export type FunnelStatus =
   | 'interview_deferred'
 
 export const FUNNEL_STAGES: FunnelStatus[] = [
-  'registered', 'applied', 'invited_to_interview',
+  'lead', 'registered', 'applied', 'invited_to_interview',
   'booked', 'interviewed', 'invited_to_enrol', 'enrolled'
 ]
 
@@ -64,6 +65,7 @@ export const SIDE_STATUSES: FunnelStatus[] = [
 ]
 
 export const FUNNEL_LABELS: Record<FunnelStatus, string> = {
+  lead: 'Lead',
   registered: 'Registered',
   applied: 'Applied',
   application_rejected: 'Application Rejected',
@@ -406,6 +408,7 @@ export type PendingFunnelChange = {
 
 // Funnel rank system — used for advancement checks (prevents backsliding)
 export const FUNNEL_RANK: Record<string, number> = {
+  lead: 0,
   registered: 1,
   applied: 2,
   application_rejected: 2,

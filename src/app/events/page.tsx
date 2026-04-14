@@ -17,7 +17,8 @@ type EventStats = {
   pivRate: number
   corporateEmails: number
   newLeads: number
-  returningLeads: number
+  returningAttendees: number
+  returningRegistrants: number
   topCompanies: { name: string; count: number }[]
   sourcesTracked: number
   sourcesRate: number
@@ -46,9 +47,12 @@ async function getEventComparisonData(): Promise<EventStats[]> {
     eventMap.get(date)!.registrations.push(reg)
   })
 
-  // Track which leads appeared in earlier events (for new vs returning)
+  // Track which leads appeared in earlier events (for new vs returning split)
+  // - priorAttendeeIds: leads who attended at least one prior event
+  // - priorRegistrantIds: leads who registered for a prior event but never attended
   const sortedDates = Array.from(eventMap.keys()).sort()
-  const seenLeadIds = new Set<string>()
+  const priorAttendeeIds = new Set<string>()
+  const priorRegistrantIds = new Set<string>()
 
   const eventStats: EventStats[] = []
 
@@ -73,19 +77,33 @@ async function getEventComparisonData(): Promise<EventStats[]> {
       l.company_domain && !personalDomains.has(l.company_domain)
     ).length
 
-    // New vs returning
+    // New vs returning split:
+    // - returningAttendees: registered now AND attended a prior event
+    // - returningRegistrants: registered now AND registered (but didn't attend) a prior event
+    // - newLeads: never seen before
     let newLeads = 0
-    let returningLeads = 0
+    let returningAttendees = 0
+    let returningRegistrants = 0
     eventLeadIds.forEach(id => {
-      if (seenLeadIds.has(id)) {
-        returningLeads++
+      if (priorAttendeeIds.has(id)) {
+        returningAttendees++
+      } else if (priorRegistrantIds.has(id)) {
+        returningRegistrants++
       } else {
         newLeads++
       }
     })
 
-    // Track for next event
-    eventLeadIds.forEach(id => seenLeadIds.add(id))
+    // Track for next event — separate attended from registered-only
+    // (a lead can graduate from registrant-only to attendee, but not back)
+    regs.forEach(r => {
+      if (r.attended) {
+        priorAttendeeIds.add(r.customer_id)
+        priorRegistrantIds.delete(r.customer_id)
+      } else if (!priorAttendeeIds.has(r.customer_id)) {
+        priorRegistrantIds.add(r.customer_id)
+      }
+    })
 
     // Top companies
     const companyCount = new Map<string, number>()
@@ -129,7 +147,8 @@ async function getEventComparisonData(): Promise<EventStats[]> {
       pivRate: Math.round((pivoters / total) * 100),
       corporateEmails,
       newLeads,
-      returningLeads,
+      returningAttendees,
+      returningRegistrants,
       topCompanies,
       sourcesTracked,
       sourcesRate: Math.round((sourcesTracked / registered) * 100),
@@ -247,18 +266,24 @@ export default async function EventComparisonPage() {
             </div>
 
             {/* New vs returning + corporate */}
-            <div className="grid grid-cols-3 gap-4 mb-5 pt-4 border-t border-[var(--color-border-subtle)]">
+            <div className="grid grid-cols-4 gap-4 mb-5 pt-4 border-t border-[var(--color-border-subtle)]">
               <div>
                 <div className="text-lg font-semibold text-[var(--color-text-primary)]">
                   {event.newLeads}
                 </div>
                 <div className="text-xs text-[var(--color-text-muted)]">New leads</div>
               </div>
-              <div>
-                <div className="text-lg font-semibold text-[var(--color-text-secondary)]">
-                  {event.returningLeads}
+              <div title="Registered for this event AND attended at least one prior event">
+                <div className="text-lg font-semibold text-[#5B9A8B]">
+                  {event.returningAttendees}
                 </div>
-                <div className="text-xs text-[var(--color-text-muted)]">Returning</div>
+                <div className="text-xs text-[var(--color-text-muted)]">Returning attendees</div>
+              </div>
+              <div title="Registered for this event AND registered for a prior event but never attended">
+                <div className="text-lg font-semibold text-[var(--color-text-secondary)]">
+                  {event.returningRegistrants}
+                </div>
+                <div className="text-xs text-[var(--color-text-muted)]">Returning registrants</div>
               </div>
               <div>
                 <div className="text-lg font-semibold text-[var(--color-text-secondary)]">

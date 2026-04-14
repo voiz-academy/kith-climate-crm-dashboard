@@ -1,0 +1,62 @@
+# Supabase Edge Functions Configuration
+#
+# This file locks verify_jwt per function so deployments never
+# accidentally flip a webhook to require JWT (which breaks external
+# callers like Stripe, Calendly, Fathom, etc.).
+#
+# Rule of thumb:
+#   verify_jwt = false  ->  receives external webhooks OR called without JWT
+#   verify_jwt = true   ->  called only by internal code with service_role key
+
+# --- External webhooks (NO JWT from the caller) ---
+
+[functions.stripe-kith-climate-webhook]
+verify_jwt = false
+
+[functions.calendly-webhook]
+verify_jwt = false
+
+[functions.fathom-webhook]
+verify_jwt = false
+
+[functions.kith-climate-resend-webhook]
+verify_jwt = false
+
+# --- Internal functions called without JWT context ---
+
+[functions.process-enrichment]
+verify_jwt = false
+
+[functions.outlook-daily-sync]
+verify_jwt = false
+
+[functions.kith-climate-certificate]
+verify_jwt = false
+
+[functions.kith-climate-testimonial]
+verify_jwt = false
+
+[functions.kith-climate-pending-email-review]
+verify_jwt = false
+
+# --- Manual backfill tools ---
+
+[functions.backfill-calendly]
+verify_jwt = false
+
+[functions.fathom-backfill]
+verify_jwt = false
+
+[functions.luma-attendance-backfill]
+verify_jwt = false
+
+# --- Internal functions called WITH service_role key ---
+
+[functions.kith-climate-email-automation]
+verify_jwt = true
+
+[functions.kith-climate-send-email]
+verify_jwt = true
+
+[functions.discord-member-sync]
+verify_jwt = true

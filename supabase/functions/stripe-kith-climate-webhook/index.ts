@@ -128,27 +128,13 @@ async function findCustomerByEmail(email: string) {
 
 /**
  * Determine the cohort for a payment.
- * Default: CURRENT_COHORT.
- * If the customer already has a different (future) cohort in their
- * cohort_statuses JSONB, use that cohort instead — it means they're
- * paying for a future cohort.
+ * Always uses CURRENT_COHORT. Previous logic tried to detect "future"
+ * cohorts from cohort_statuses but couldn't distinguish past from future
+ * (no date parsing), causing payments to be assigned to old cohorts.
  */
 function determineCohort(
-  cohortStatuses: Record<string, { status: string; updated_at: string }> | null
+  _cohortStatuses: Record<string, { status: string; updated_at: string }> | null
 ): string {
-  if (!cohortStatuses) return CURRENT_COHORT;
-
-  const cohorts = Object.keys(cohortStatuses);
-  if (cohorts.length === 0) return CURRENT_COHORT;
-
-  // If there's a cohort entry that isn't the current default,
-  // the customer is paying for that future cohort.
-  const futureCohort = cohorts.find((c) => c !== CURRENT_COHORT);
-  if (futureCohort) {
-    log("Customer has future cohort in cohort_statuses", { futureCohort });
-    return futureCohort;
-  }
-
   return CURRENT_COHORT;
 }
 
