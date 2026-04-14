@@ -1,5 +1,9 @@
 import { getSupabase, fetchAll, type Customer, type WorkshopRegistration } from './supabase'
 
+// The date after which event registrations count toward the current cohort's funnel.
+// This is the start date of the previous cohort — registrations before this fed that cohort.
+const CURRENT_WINDOW_START = '2026-03-16'
+
 /**
  * Conversion rate engine for the Kith Climate enrollment funnel.
  *
@@ -235,13 +239,17 @@ export async function computeCohortProjection(
   const customers = allCustomers.filter(c => c.cohort_statuses != null)
   const rates = await computeStageRates(customers as { cohort_statuses: Record<string, { status: string }> }[])
 
-  const allRegs = (await fetchAll<WorkshopRegistration>('workshop_registrations'))
-    .map(r => ({ customer_id: r.customer_id, attended: r.attended }))
+  const allRegs = await fetchAll<WorkshopRegistration>('workshop_registrations')
   const attendedSet = new Set(allRegs.filter(r => r.attended).map(r => r.customer_id))
 
-  // Compute event-stage rates from full registration history
+  // Only count registrations from the current enrollment window (after last cohort)
+  // for the event→enrolled rate and goal bar. Earlier registrations fed the previous cohort.
+  const currentWindowRegs = allRegs
+    .filter(r => r.event_date >= CURRENT_WINDOW_START)
+    .map(r => ({ customer_id: r.customer_id, attended: r.attended }))
+
   const eventStage = computeEventStageRates(
-    allRegs,
+    currentWindowRegs,
     customers as { id: string; cohort_statuses: Record<string, { status: string }> | null }[]
   )
   rates.registered_to_enrolled = eventStage.rate
