@@ -281,16 +281,38 @@ export default async function Dashboard() {
 
           <div className="space-y-3">
             <GoalBar current={p.current.enrolled} goal={p.goal} label="Enrolled" />
-            <GoalBar
-              current={p.current.invited_to_enrol}
-              goal={p.current.invited_to_enrol + Math.ceil(p.gap / p.rates.invited_to_enrolled)}
-              label={`Invited to Enrol (need ${Math.ceil(p.gap / p.rates.invited_to_enrolled)} more at ${Math.round(p.rates.invited_to_enrolled * 100)}% conv.)`}
-            />
-            <GoalBar
-              current={p.current.applied}
-              goal={p.current.applied + p.total_applications_needed}
-              label={`Pipeline Entries (need ${p.total_applications_needed} more at ${Math.round(p.rates.overall_applied_to_enrolled * 100)}% conv.)`}
-            />
+            {(() => {
+              const invitesNeeded = Math.ceil(p.goal / p.rates.invited_to_enrolled)
+              const invitesRemaining = Math.max(0, invitesNeeded - p.current.invited_to_enrol)
+              return (
+                <GoalBar
+                  current={p.current.invited_to_enrol}
+                  goal={invitesNeeded}
+                  label={`Invited to Enrol (need ${invitesRemaining} more at ${Math.round(p.rates.invited_to_enrolled * 100)}% conv.)`}
+                />
+              )
+            })()}
+            {(() => {
+              const pipelineNeeded = Math.ceil(p.goal / p.rates.overall_applied_to_enrolled)
+              const pipelineRemaining = Math.max(0, pipelineNeeded - p.current.applied)
+              return (
+                <GoalBar
+                  current={p.current.applied}
+                  goal={pipelineNeeded}
+                  label={`Pipeline Entries (need ${pipelineRemaining} more at ${Math.round(p.rates.overall_applied_to_enrolled * 100)}% conv.)`}
+                />
+              )
+            })()}
+            {p.rates.registered_to_enrolled > 0 && (() => {
+              const regsNeeded = Math.ceil(p.goal / p.rates.registered_to_enrolled)
+              return (
+                <GoalBar
+                  current={p.event_funnel.unique_registrants}
+                  goal={regsNeeded}
+                  label={`Event Registrations (need ${Math.max(0, regsNeeded - p.event_funnel.unique_registrants)} more at ${Math.round(p.rates.registered_to_enrolled * 100)}% conv.)`}
+                />
+              )
+            })()}
           </div>
 
           {/* Pipeline waterfall */}
@@ -320,16 +342,12 @@ export default async function Dashboard() {
           <div className="kith-card p-6">
             <h3 className="kith-label mb-4">Historical Conversion Rates</h3>
             <p className="text-xs text-[var(--color-text-muted)] mb-4">
-              Event stages: all registrations ({p.event_funnel.total_registrations} regs, {p.event_funnel.unique_attendees} unique attendees).
+              Events: {p.event_funnel.unique_registrants} unique registrants → {p.event_funnel.registrants_who_enrolled} enrolled.
               Cohort funnel: March 16th 2026 (108 pipeline → 28 enrolled).
             </p>
             <div className="space-y-3">
-              <div className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">Top of Funnel (Events)</div>
-              <RateBar label="Registered → Attended" rate={p.rates.registered_to_attended} />
-              <RateBar label="Attended → Applied" rate={p.rates.attended_to_applied} />
-              <RateBar label="Reg. only → Applied" rate={p.rates.registered_only_to_applied} />
-              <div className="pt-3 border-t border-[var(--color-border-subtle)]">
-                <div className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] mb-3">Cohort Funnel</div>
+              <RateBar label="Event Registered → Enrolled" rate={p.rates.registered_to_enrolled} />
+              <div className="pt-2 border-t border-[var(--color-border-subtle)]">
                 <div className="space-y-3">
                   <RateBar label="Applied → Booked" rate={p.rates.applied_to_booked} />
                   <RateBar label="Booked → Interviewed" rate={p.rates.booked_to_interviewed} />
@@ -354,12 +372,16 @@ export default async function Dashboard() {
             </p>
             <div className="space-y-4">
               {[
-                { label: 'Pipeline Entries', target: p.weekly_targets.applications, current: d.appsThisWeek },
-                { label: 'Interviews Booked', target: p.weekly_targets.interviews_booked, current: d.bookingsThisWeek },
-                { label: 'Interviews Done', target: p.weekly_targets.interviews_conducted, current: d.interviewsThisWeek },
-                { label: 'Enrollments', target: p.weekly_targets.enrollments, current: d.enrollmentsThisWeek },
+                ...(p.weekly_targets.event_registrations > 0
+                  ? [{ label: 'Event Registrations', target: p.weekly_targets.event_registrations, current: null as number | null }]
+                  : []),
+                { label: 'Pipeline Entries', target: p.weekly_targets.applications, current: d.appsThisWeek as number | null },
+                { label: 'Interviews Booked', target: p.weekly_targets.interviews_booked, current: d.bookingsThisWeek as number | null },
+                { label: 'Interviews Done', target: p.weekly_targets.interviews_conducted, current: d.interviewsThisWeek as number | null },
+                { label: 'Enrollments', target: p.weekly_targets.enrollments, current: d.enrollmentsThisWeek as number | null },
               ].map((t) => {
-                const onTrack = t.current >= t.target
+                const hasTracking = t.current !== null
+                const onTrack = hasTracking && t.current! >= t.target
                 return (
                   <div key={t.label} className="flex items-center justify-between">
                     <div>
@@ -367,16 +389,22 @@ export default async function Dashboard() {
                       <span className="text-xs text-[var(--color-text-muted)] ml-2">target: {t.target}/week</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className={`text-lg font-semibold ${onTrack ? 'text-[#5B9A8B]' : 'text-[var(--color-text-primary)]'}`}>
-                        {t.current}
-                      </span>
-                      <span className={`text-xs px-1.5 py-0.5 rounded ${
-                        onTrack
-                          ? 'bg-[rgba(91,154,139,0.15)] text-[#5B9A8B]'
-                          : 'bg-[rgba(232,230,227,0.06)] text-[var(--color-text-muted)]'
-                      }`}>
-                        {onTrack ? 'on track' : `${t.target - t.current} behind`}
-                      </span>
+                      {hasTracking ? (
+                        <>
+                          <span className={`text-lg font-semibold ${onTrack ? 'text-[#5B9A8B]' : 'text-[var(--color-text-primary)]'}`}>
+                            {t.current}
+                          </span>
+                          <span className={`text-xs px-1.5 py-0.5 rounded ${
+                            onTrack
+                              ? 'bg-[rgba(91,154,139,0.15)] text-[#5B9A8B]'
+                              : 'bg-[rgba(232,230,227,0.06)] text-[var(--color-text-muted)]'
+                          }`}>
+                            {onTrack ? 'on track' : `${t.target - t.current!} behind`}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-xs text-[var(--color-text-muted)]">via Luma</span>
+                      )}
                     </div>
                   </div>
                 )

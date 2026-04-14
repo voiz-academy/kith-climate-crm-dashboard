@@ -15,10 +15,8 @@ import { getSupabase, fetchAll, type Customer, type WorkshopRegistration } from 
 // ---- Types ----
 
 export type StageRates = {
-  // Top-of-funnel (event stages, computed from workshop_registrations across all events)
-  registered_to_attended: number
-  attended_to_applied: number
-  registered_only_to_applied: number
+  // Top-of-funnel: event registrants who eventually enrolled (any cohort)
+  registered_to_enrolled: number
   // Cohort funnel (computed from REFERENCE_COHORTS)
   applied_to_booked: number
   booked_to_interviewed: number
@@ -28,11 +26,8 @@ export type StageRates = {
 }
 
 export type EventFunnelCounts = {
-  total_registrations: number
   unique_registrants: number
-  unique_attendees: number
-  attendees_who_applied: number
-  registered_only_who_applied: number
+  registrants_who_enrolled: number
 }
 
 export type LeadQuality = {
@@ -62,13 +57,14 @@ export type CohortProjection = {
   gap: number
   weeks_remaining: number
   weekly_targets: {
+    event_registrations: number
     applications: number
     interviews_booked: number
     interviews_conducted: number
-    invited_to_enrol: number
     enrollments: number
   }
   total_applications_needed: number
+  total_registrations_needed: number
 }
 
 // ---- Constants ----
@@ -145,10 +141,8 @@ async function computeStageRates(
   }
 
   const rates: StageRates = {
-    // Event-stage fields are populated separately in computeCohortProjection
-    registered_to_attended: 0,
-    attended_to_applied: 0,
-    registered_only_to_applied: 0,
+    // Event-stage field is populated separately in computeCohortProjection
+    registered_to_enrolled: 0,
     applied_to_booked: rate(totals.booked, totals.applied),
     booked_to_interviewed: rate(totals.interviewed, totals.booked),
     interviewed_to_invited: rate(totals.invited_to_enrol, totals.interviewed),
@@ -250,9 +244,7 @@ export async function computeCohortProjection(
     allRegs,
     customers as { id: string; cohort_statuses: Record<string, { status: string }> | null }[]
   )
-  rates.registered_to_attended = eventStage.rates.registered_to_attended
-  rates.attended_to_applied = eventStage.rates.attended_to_applied
-  rates.registered_only_to_applied = eventStage.rates.registered_only_to_applied
+  rates.registered_to_enrolled = eventStage.rate
 
   // Build pipeline for target cohort
   const pipeline: PipelineCustomer[] = []
@@ -316,7 +308,15 @@ export async function computeCohortProjection(
     ? Math.ceil(gap / app_to_enrolled)
     : gap
 
+  // Event registrations needed to fill the gap (using historical registered→enrolled rate)
+  const reg_to_enrolled = rates.registered_to_enrolled
+  const total_registrations_needed = reg_to_enrolled > 0
+    ? Math.ceil(gap / reg_to_enrolled)
+    : 0
+
   const weekly_targets = {
+    event_registrations: total_registrations_needed > 0
+      ? Math.ceil(total_registrations_needed / weeks_remaining) : 0,
     applications: Math.ceil(total_applications_needed / weeks_remaining),
     interviews_booked: Math.ceil(
       (total_applications_needed * rates.applied_to_booked) / weeks_remaining
@@ -324,24 +324,19 @@ export async function computeCohortProjection(
     interviews_conducted: Math.ceil(
       (total_applications_needed * rates.applied_to_booked * rates.booked_to_interviewed) / weeks_remaining
     ),
-    invited_to_enrol: Math.ceil(
-      enrollmentGoal / rates.invited_to_enrolled
-    ),
     enrollments: Math.ceil(gap / weeks_remaining),
   }
 
   return {
     rates, event_funnel: eventStage.counts, quality, current,
     projected_enrolled, goal: enrollmentGoal, gap, weeks_remaining,
-    weekly_targets, total_applications_needed,
+    weekly_targets, total_applications_needed, total_registrations_needed,
   }
 }
 
 function defaultRates(): StageRates {
   return {
-    registered_to_attended: 0,
-    attended_to_applied: 0,
-    registered_only_to_applied: 0,
+    registered_to_enrolled: 0,
     applied_to_booked: 0.78,
     booked_to_interviewed: 0.82,
     interviewed_to_invited: 0.89,
@@ -351,63 +346,41 @@ function defaultRates(): StageRates {
 }
 
 /**
- * Compute event-stage conversion rates from workshop_registrations.
+ * Compute single event-to-enrollment conversion rate from workshop_registrations.
  *
- * - registered_to_attended: per-registration attendance rate (across all events)
- * - attended_to_applied: % of unique attendee customers who reached "applied" in any cohort
- * - registered_only_to_applied: % of unique registered-only customers who reached "applied"
- *
- * "Applied" here means having any cohort_statuses entry whose status is in STAGE_REACHED.applied.
+ * Rate = unique registrants who eventually enrolled (any cohort) / unique registrants.
+ * "Enrolled" means having any cohort_statuses entry with status = 'enrolled'.
  */
 function computeEventStageRates(
   registrations: { customer_id: string; attended: boolean }[],
   customers: { id: string; cohort_statuses: Record<string, { status: string }> | null }[]
-): { rates: Pick<StageRates, 'registered_to_attended' | 'attended_to_applied' | 'registered_only_to_applied'>; counts: EventFunnelCounts } {
-  const total_registrations = registrations.length
-  const attendedCount = registrations.filter(r => r.attended).length
-
-  const attendeeIds = new Set<string>()
+): { rate: number; counts: EventFunnelCounts } {
   const registrantIds = new Set<string>()
   for (const r of registrations) {
     registrantIds.add(r.customer_id)
-    if (r.attended) attendeeIds.add(r.customer_id)
   }
-  const registeredOnlyIds = new Set<string>()
-  registrantIds.forEach(id => { if (!attendeeIds.has(id)) registeredOnlyIds.add(id) })
 
-  // Build set of customers who applied to any cohort
-  const appliedIds = new Set<string>()
+  // Build set of customers who enrolled in any cohort
+  const enrolledIds = new Set<string>()
   for (const c of customers) {
     const statuses = c.cohort_statuses
     if (!statuses) continue
     for (const entry of Object.values(statuses)) {
-      if (STAGE_REACHED.applied.includes(entry.status)) {
-        appliedIds.add(c.id)
+      if (entry.status === 'enrolled') {
+        enrolledIds.add(c.id)
         break
       }
     }
   }
 
-  let attendeesApplied = 0
-  attendeeIds.forEach(id => { if (appliedIds.has(id)) attendeesApplied++ })
-
-  let registeredOnlyApplied = 0
-  registeredOnlyIds.forEach(id => { if (appliedIds.has(id)) registeredOnlyApplied++ })
-
-  const counts: EventFunnelCounts = {
-    total_registrations,
-    unique_registrants: registrantIds.size,
-    unique_attendees: attendeeIds.size,
-    attendees_who_applied: attendeesApplied,
-    registered_only_who_applied: registeredOnlyApplied,
-  }
+  let registrantsEnrolled = 0
+  registrantIds.forEach(id => { if (enrolledIds.has(id)) registrantsEnrolled++ })
 
   return {
-    rates: {
-      registered_to_attended: total_registrations > 0 ? attendedCount / total_registrations : 0,
-      attended_to_applied: attendeeIds.size > 0 ? attendeesApplied / attendeeIds.size : 0,
-      registered_only_to_applied: registeredOnlyIds.size > 0 ? registeredOnlyApplied / registeredOnlyIds.size : 0,
+    rate: registrantIds.size > 0 ? registrantsEnrolled / registrantIds.size : 0,
+    counts: {
+      unique_registrants: registrantIds.size,
+      registrants_who_enrolled: registrantsEnrolled,
     },
-    counts,
   }
 }
