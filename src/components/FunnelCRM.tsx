@@ -88,6 +88,7 @@ function CustomerDetailModal({
   booking,
   reminderCount,
   onClose,
+  onNotesSaved,
 }: {
   customer: Customer
   application?: CohortApplication
@@ -98,7 +99,37 @@ function CustomerDetailModal({
   booking?: InterviewBooking
   reminderCount: number
   onClose: () => void
+  onNotesSaved: (notes: string | null) => void
 }) {
+  const [notesDraft, setNotesDraft] = useState<string>(customer.notes ?? '')
+  const [notesSaving, setNotesSaving] = useState(false)
+  const [notesError, setNotesError] = useState<string | null>(null)
+  const [notesSavedAt, setNotesSavedAt] = useState<number | null>(null)
+  const notesDirty = notesDraft !== (customer.notes ?? '')
+
+  async function handleSaveNotes() {
+    setNotesSaving(true)
+    setNotesError(null)
+    try {
+      const nextNotes = notesDraft.trim() === '' ? null : notesDraft
+      const res = await fetch('/api/customers/update-notes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customer_id: customer.id, notes: nextNotes }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body?.error || `Request failed (${res.status})`)
+      }
+      onNotesSaved(nextNotes)
+      setNotesSavedAt(Date.now())
+    } catch (err) {
+      setNotesError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setNotesSaving(false)
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={onClose}>
       {/* Backdrop */}
@@ -128,6 +159,42 @@ function CustomerDetailModal({
         </div>
 
         <div className="px-6 py-5 space-y-6">
+          {/* Notes (editable) */}
+          <section>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">Notes</h3>
+              {notesSavedAt && !notesDirty && !notesSaving && (
+                <span className="text-xs text-[#5B9A8B]">Saved</span>
+              )}
+            </div>
+            <textarea
+              value={notesDraft}
+              onChange={(e) => setNotesDraft(e.target.value)}
+              placeholder="Add notes about this customer…"
+              rows={4}
+              className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded p-3 text-sm text-[var(--color-text-primary)] leading-relaxed placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[#5B9A8B] resize-y"
+            />
+            <div className="flex items-center justify-between mt-2">
+              <span className="text-xs">
+                {notesError ? (
+                  <span className="text-[#EF4444]">{notesError}</span>
+                ) : notesDirty ? (
+                  <span className="text-[var(--color-text-muted)]">Unsaved changes</span>
+                ) : (
+                  ''
+                )}
+              </span>
+              <button
+                type="button"
+                onClick={handleSaveNotes}
+                disabled={!notesDirty || notesSaving}
+                className="px-3 py-1.5 text-xs font-medium rounded border transition-colors text-[#5B9A8B] border-[rgba(91,154,139,0.3)] hover:bg-[rgba(91,154,139,0.1)] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {notesSaving ? 'Saving…' : 'Save notes'}
+              </button>
+            </div>
+          </section>
+
           {/* Status & Classification */}
           <section>
             <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-3">Status & Classification</h3>
@@ -981,6 +1048,11 @@ export function FunnelCRM({
           booking={bookingsByCustomer[selectedCustomer.id]}
           reminderCount={reminderCountsByCustomer[selectedCustomer.id] || 0}
           onClose={() => setSelectedCustomer(null)}
+          onNotesSaved={(notes) => {
+            // Keep the open modal in sync after save; the parent row state
+            // will pick up the change on its next refetch.
+            setSelectedCustomer((c) => (c ? { ...c, notes } : c))
+          }}
         />
       )}
 

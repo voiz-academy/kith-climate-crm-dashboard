@@ -257,11 +257,6 @@ export function FunnelStageDetail({
           application={applicationsByCustomer[selectedCustomer.id]}
           interview={interviewsByCustomer[selectedCustomer.id]}
           onClose={() => setSelectedCustomer(null)}
-          onNotesSaved={(notes) => {
-            // Keep the open modal in sync after save; the parent row state
-            // will pick up the change on its next refetch.
-            setSelectedCustomer((c) => (c ? { ...c, notes } : c))
-          }}
         />
       )}
     </div>
@@ -274,43 +269,12 @@ function CustomerDetailModal({
   application,
   interview,
   onClose,
-  onNotesSaved,
 }: {
   customer: Customer
   application?: CohortApplication
   interview?: Interview
   onClose: () => void
-  onNotesSaved: (notes: string | null) => void
 }) {
-  const [notesDraft, setNotesDraft] = useState<string>(customer.notes ?? '')
-  const [notesSaving, setNotesSaving] = useState(false)
-  const [notesError, setNotesError] = useState<string | null>(null)
-  const [notesSavedAt, setNotesSavedAt] = useState<number | null>(null)
-  const notesDirty = notesDraft !== (customer.notes ?? '')
-
-  async function handleSaveNotes() {
-    setNotesSaving(true)
-    setNotesError(null)
-    try {
-      const nextNotes = notesDraft.trim() === '' ? null : notesDraft
-      const res = await fetch('/api/customers/update-notes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ customer_id: customer.id, notes: nextNotes }),
-      })
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}))
-        throw new Error(body?.error || `Request failed (${res.status})`)
-      }
-      onNotesSaved(nextNotes)
-      setNotesSavedAt(Date.now())
-    } catch (err) {
-      setNotesError(err instanceof Error ? err.message : String(err))
-    } finally {
-      setNotesSaving(false)
-    }
-  }
-
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
@@ -449,44 +413,6 @@ function CustomerDetailModal({
           ) : (
             <p className="text-sm text-[var(--color-text-muted)]">No application on file</p>
           )}
-
-          {/* CRM Notes (editable) */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
-                Notes
-              </h3>
-              {notesSavedAt && !notesDirty && !notesSaving && (
-                <span className="text-xs text-[#5B9A8B]">Saved</span>
-              )}
-            </div>
-            <textarea
-              value={notesDraft}
-              onChange={(e) => setNotesDraft(e.target.value)}
-              placeholder="Add notes about this customer…"
-              rows={4}
-              className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-3 text-sm text-[var(--color-text-primary)] leading-relaxed placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[#5B9A8B] resize-y"
-            />
-            <div className="flex items-center justify-between mt-2">
-              <span className="text-xs text-[var(--color-text-muted)]">
-                {notesError ? (
-                  <span className="text-[#EF4444]">{notesError}</span>
-                ) : notesDirty ? (
-                  'Unsaved changes'
-                ) : (
-                  ''
-                )}
-              </span>
-              <button
-                type="button"
-                onClick={handleSaveNotes}
-                disabled={!notesDirty || notesSaving}
-                className="px-3 py-1.5 text-xs font-medium rounded border transition-colors text-[#5B9A8B] border-[rgba(91,154,139,0.3)] hover:bg-[rgba(91,154,139,0.1)] disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {notesSaving ? 'Saving…' : 'Save notes'}
-              </button>
-            </div>
-          </div>
 
           {/* Interview Notes (if available) */}
           {interview?.interviewer_notes && (
