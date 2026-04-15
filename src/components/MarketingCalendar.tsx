@@ -66,6 +66,24 @@ const STATUS_CONFIG: Record<EventStatus, { label: string; color: string }> = {
   completed: { label: 'Completed', color: '#5B9A8B' },
 }
 
+const AUTHOR_COLORS: Record<string, { color: string; bg: string }> = {
+  'Ben':           { color: '#7EC4A8', bg: 'rgba(126, 196, 168, 0.15)' },
+  'Yvonne':        { color: '#C49BD6', bg: 'rgba(196, 155, 214, 0.15)' },
+  'Kith Climate':  { color: '#6B8DD6', bg: 'rgba(107, 141, 214, 0.15)' },
+  'Diego':         { color: '#D6A56B', bg: 'rgba(214, 165, 107, 0.15)' },
+}
+
+function getEventColors(event: MarketingEvent): { color: string; bg: string; icon: string } {
+  const cfg = CATEGORY_CONFIG[event.category]
+  if (event.category === 'linkedin') {
+    const author = (event.metadata as Record<string, unknown>)?.author as string | undefined
+    if (author && AUTHOR_COLORS[author]) {
+      return { ...AUTHOR_COLORS[author], icon: cfg.icon }
+    }
+  }
+  return cfg
+}
+
 const CATEGORIES = Object.keys(CATEGORY_CONFIG) as EventCategory[]
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -252,11 +270,11 @@ export function MarketingCalendar({ initialEvents }: { initialEvents?: Marketing
       </div>
 
       {/* Calendar grid */}
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse">
+      <div>
+        <table className="w-full border-collapse table-fixed">
           <thead>
             <tr>
-              <th className="w-[100px] p-2 text-left kith-label">Week</th>
+              <th className="w-[80px] p-2 text-left kith-label">Week</th>
               {dayLabels.map(day => (
                 <th key={day} className="p-2 text-center kith-label">{day}</th>
               ))}
@@ -279,7 +297,7 @@ export function MarketingCalendar({ initialEvents }: { initialEvents?: Marketing
                     <td
                       key={date}
                       onClick={() => handleAddEvent(date)}
-                      className={`p-1 align-top min-w-[120px] border-l border-[var(--color-border)] transition-colors group cursor-pointer hover:bg-[rgba(91,154,139,0.04)] ${
+                      className={`p-1 align-top border-l border-[var(--color-border)] transition-colors group cursor-pointer hover:bg-[rgba(91,154,139,0.04)] ${
                         today ? 'bg-[rgba(91,154,139,0.06)]' : ''
                       } ${past ? 'opacity-60' : ''}`}
                     >
@@ -295,21 +313,21 @@ export function MarketingCalendar({ initialEvents }: { initialEvents?: Marketing
                       </div>
                       <div className="space-y-0.5 min-h-[40px]">
                         {dayEvents.map(event => {
-                          const cfg = CATEGORY_CONFIG[event.category]
+                          const colors = getEventColors(event)
                           return (
                             <button
                               key={event.id}
                               onClick={(e) => { e.stopPropagation(); handleEditEvent(event) }}
                               className="w-full text-left px-1.5 py-1 rounded text-[11px] leading-tight transition-all hover:brightness-125"
                               style={{
-                                background: cfg.bg,
-                                color: cfg.color,
-                                borderLeft: `2px solid ${cfg.color}`,
+                                background: colors.bg,
+                                color: colors.color,
+                                borderLeft: `2px solid ${colors.color}`,
                               }}
                               title={event.title}
                             >
                               <span className="flex items-center gap-1">
-                                <span className="font-mono text-[9px] opacity-60 shrink-0">{cfg.icon}</span>
+                                <span className="font-mono text-[9px] opacity-60 shrink-0">{colors.icon}</span>
                                 <span className="truncate">{event.title}</span>
                               </span>
                               {event.time && (
