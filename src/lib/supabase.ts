@@ -139,6 +139,7 @@ export type Customer = {
   cohort_statuses: CohortStatuses | null
   discord_user_id: string | null
   discord_status: DiscordStatus | null
+  notes: string | null
   created_at: string
   updated_at: string
 }
