@@ -235,11 +235,16 @@ export async function computeCohortProjection(
   // Use fetchAll to bypass the 1000-row Supabase default limit.
   // The customers table is ~5k+ rows; a raw .from() call silently truncates and
   // produces undercounts (e.g. enrolled = 3 instead of 4, applied = 33 instead of 52).
-  const allCustomers = await fetchAll<Customer>('customers')
+  // Narrow select to cut Workers CPU (JSON parse) — only these columns are used below.
+  const allCustomers = await fetchAll<Customer>('customers', {
+    select: 'id, cohort_statuses, lead_type',
+  })
   const customers = allCustomers.filter(c => c.cohort_statuses != null)
   const rates = await computeStageRates(customers as { cohort_statuses: Record<string, { status: string }> }[])
 
-  const allRegs = await fetchAll<WorkshopRegistration>('workshop_registrations')
+  const allRegs = await fetchAll<WorkshopRegistration>('workshop_registrations', {
+    select: 'customer_id, attended, event_date',
+  })
   const attendedSet = new Set(allRegs.filter(r => r.attended).map(r => r.customer_id))
 
   // Split registrations into two windows:

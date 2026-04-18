@@ -37,6 +37,7 @@ export function getSupabase(): AnySupabaseClient {
 export type FunnelStatus =
   | 'lead'
   | 'registered'
+  | 'attended'
   | 'applied'
   | 'application_rejected'
   | 'invited_to_interview'
@@ -53,7 +54,7 @@ export type FunnelStatus =
   | 'interview_deferred'
 
 export const FUNNEL_STAGES: FunnelStatus[] = [
-  'lead', 'registered', 'applied', 'invited_to_interview',
+  'lead', 'registered', 'attended', 'applied', 'invited_to_interview',
   'booked', 'interviewed', 'invited_to_enrol', 'enrolled'
 ]
 
@@ -67,6 +68,7 @@ export const SIDE_STATUSES: FunnelStatus[] = [
 export const FUNNEL_LABELS: Record<FunnelStatus, string> = {
   lead: 'Lead',
   registered: 'Registered',
+  attended: 'Attended',
   applied: 'Applied',
   application_rejected: 'Application Rejected',
   invited_to_interview: 'Invited to Interview',
@@ -411,18 +413,21 @@ export type PendingFunnelChange = {
 export const FUNNEL_RANK: Record<string, number> = {
   lead: 0,
   registered: 1,
-  applied: 2,
-  application_rejected: 2,
-  invited_to_interview: 3,
-  booked: 4,
-  interviewed: 5,
-  no_show: 5,
-  interview_rejected: 5,
-  invited_to_enrol: 6,
-  offer_expired: 6,
-  requested_discount: 6,
-  deferred_next_cohort: 6,
-  enrolled: 7,
+  attended: 2,
+  applied: 3,
+  application_rejected: 3,
+  invited_to_interview: 4,
+  not_invited: 4,
+  interview_deferred: 4,
+  booked: 5,
+  interviewed: 6,
+  no_show: 6,
+  interview_rejected: 6,
+  invited_to_enrol: 7,
+  offer_expired: 7,
+  requested_discount: 7,
+  deferred_next_cohort: 7,
+  enrolled: 8,
 }
 
 // Event name/label mapping
@@ -455,14 +460,15 @@ const PAGE_SIZE = 500
 
 export async function fetchAll<T>(
   table: string,
-  options?: { orderBy?: string; ascending?: boolean }
+  options?: { orderBy?: string; ascending?: boolean; select?: string }
 ): Promise<T[]> {
   const allRows: T[] = []
   let from = 0
   const client = getSupabase()
+  const selectStr = options?.select ?? '*'
 
   while (true) {
-    let query = client.from(table).select('*').range(from, from + PAGE_SIZE - 1)
+    let query = client.from(table).select(selectStr).range(from, from + PAGE_SIZE - 1)
 
     if (options?.orderBy) {
       query = query.order(options.orderBy, { ascending: options.ascending ?? true })
@@ -477,7 +483,7 @@ export async function fetchAll<T>(
 
     if (!data || data.length === 0) break
 
-    allRows.push(...(data as T[]))
+    allRows.push(...(data as unknown as T[]))
 
     if (data.length < PAGE_SIZE) break
     from += PAGE_SIZE

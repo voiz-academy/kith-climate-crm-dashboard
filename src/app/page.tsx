@@ -1,8 +1,4 @@
-import {
-  getSupabase, fetchAll, Email,
-  CohortApplication, InterviewBooking, Interview, Payment,
-  type SystemLog
-} from '@/lib/supabase'
+import { getSupabase, type SystemLog } from '@/lib/supabase'
 import { computeCohortProjection } from '@/lib/conversion-rates'
 import { generateRecommendations } from '@/lib/recommendations'
 import { Header } from '@/components/Header'
@@ -47,16 +43,43 @@ async function getDashboardData() {
   const thisWeekStart = daysAgo(now, 7)   // last 7 days
   const lastWeekStart = daysAgo(now, 14)  // 7-14 days ago
   const fourWeeksAgo = daysAgo(now, 35)   // 7-35 days ago (4 weeks before "this week")
+  const fourWeeksAgoIso = fourWeeksAgo.toISOString()
 
-  // Fetch all data in parallel
-  const [applications, interviews, bookings, payments, emails, projection] = await Promise.all([
-    fetchAll<CohortApplication>('cohort_applications'),
-    fetchAll<Interview>('interviews'),
-    fetchAll<InterviewBooking>('interviews_booked'),
-    fetchAll<Payment>('payments'),
-    fetchAll<Email>('emails'),
+  // Targeted queries: only columns used below, filtered to the 35-day window.
+  // Workers Free plan caps at 10ms CPU per request — parsing full `select(*)`
+  // responses across 6 tables was blowing past that.
+  const [appsRes, interviewsRes, bookingsRes, paymentsRes, emailsRes, projection] = await Promise.all([
+    supabase.from('cohort_applications')
+      .select('created_at')
+      .gte('created_at', fourWeeksAgoIso)
+      .limit(2000),
+    supabase.from('interviews')
+      .select('conducted_at, created_at')
+      .gte('created_at', fourWeeksAgoIso)
+      .limit(2000),
+    supabase.from('interviews_booked')
+      .select('created_at, cancelled_at')
+      .gte('created_at', fourWeeksAgoIso)
+      .is('cancelled_at', null)
+      .limit(2000),
+    supabase.from('payments')
+      .select('paid_at, created_at')
+      .eq('status', 'succeeded')
+      .gte('created_at', fourWeeksAgoIso)
+      .limit(2000),
+    supabase.from('emails')
+      .select('sent_at')
+      .eq('direction', 'outbound')
+      .gte('sent_at', fourWeeksAgoIso)
+      .limit(2000),
     computeCohortProjection(TARGET_COHORT, ENROLLMENT_GOAL, COHORT_START_DATE),
   ])
+
+  const applications = (appsRes.data ?? []) as { created_at: string }[]
+  const interviews = (interviewsRes.data ?? []) as { conducted_at: string | null; created_at: string }[]
+  const bookings = (bookingsRes.data ?? []) as { created_at: string; cancelled_at: string | null }[]
+  const succeededPayments = (paymentsRes.data ?? []) as { paid_at: string | null; created_at: string }[]
+  const outboundEmails = (emailsRes.data ?? []) as { sent_at: string }[]
 
   // Page views — last 5 weeks only (efficient)
   const fiveWeeksAgo = new Date(thisWeekStart)
@@ -95,10 +118,10 @@ async function getDashboardData() {
   const appsMonthly = applications.filter(a => inRange(a.created_at, fourWeeksAgo, thisWeekStart)).length
   const appsMonthlyAvg = weeklyAvg(appsMonthly, 4)
 
-  // ---- Interviews booked ----
-  const bookingsThisWeek = bookings.filter(b => !b.cancelled_at && inRange(b.created_at, thisWeekStart, now)).length
-  const bookingsLastWeek = bookings.filter(b => !b.cancelled_at && inRange(b.created_at, lastWeekStart, thisWeekStart)).length
-  const bookingsMonthly = bookings.filter(b => !b.cancelled_at && inRange(b.created_at, fourWeeksAgo, thisWeekStart)).length
+  // ---- Interviews booked (DB already filtered to non-cancelled) ----
+  const bookingsThisWeek = bookings.filter(b => inRange(b.created_at, thisWeekStart, now)).length
+  const bookingsLastWeek = bookings.filter(b => inRange(b.created_at, lastWeekStart, thisWeekStart)).length
+  const bookingsMonthly = bookings.filter(b => inRange(b.created_at, fourWeeksAgo, thisWeekStart)).length
   const bookingsMonthlyAvg = weeklyAvg(bookingsMonthly, 4)
 
   // ---- Interviews conducted ----
@@ -107,15 +130,13 @@ async function getDashboardData() {
   const interviewsMonthly = interviews.filter(i => inRange(i.conducted_at || i.created_at, fourWeeksAgo, thisWeekStart)).length
   const interviewsMonthlyAvg = weeklyAvg(interviewsMonthly, 4)
 
-  // ---- Payments (enrollments) ----
-  const succeededPayments = payments.filter(p => p.status === 'succeeded')
+  // ---- Payments (enrollments) — DB already filtered to status='succeeded' ----
   const enrollmentsThisWeek = succeededPayments.filter(p => inRange(p.paid_at || p.created_at, thisWeekStart, now)).length
   const enrollmentsLastWeek = succeededPayments.filter(p => inRange(p.paid_at || p.created_at, lastWeekStart, thisWeekStart)).length
   const enrollmentsMonthly = succeededPayments.filter(p => inRange(p.paid_at || p.created_at, fourWeeksAgo, thisWeekStart)).length
   const enrollmentsMonthlyAvg = weeklyAvg(enrollmentsMonthly, 4)
 
-  // ---- Emails sent ----
-  const outboundEmails = emails.filter(e => e.direction === 'outbound')
+  // ---- Emails sent — DB already filtered to direction='outbound' ----
   const emailsThisWeek = outboundEmails.filter(e => inRange(e.sent_at, thisWeekStart, now)).length
   const emailsLastWeek = outboundEmails.filter(e => inRange(e.sent_at, lastWeekStart, thisWeekStart)).length
   const emailsMonthly = outboundEmails.filter(e => inRange(e.sent_at, fourWeeksAgo, thisWeekStart)).length
