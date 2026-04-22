@@ -334,6 +334,11 @@ function CustomerDetailModal({
                     <DetailRow label="Outcome Reason" value={interview.outcome_reason} />
                   </div>
                 )}
+                {interview.interviewer_notes && (
+                  <div className="col-span-2">
+                    <DetailRow label="Interviewer Notes" value={interview.interviewer_notes} />
+                  </div>
+                )}
                 {interview.fathom_recording_url && (
                   <div className="col-span-2">
                     <DetailRow label="Recording">
