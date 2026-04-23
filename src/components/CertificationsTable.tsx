@@ -31,9 +31,14 @@ const emailStatusColors: Record<string, string> = {
   failed: 'bg-[rgba(239,68,68,0.15)] text-[#EF4444] border-[rgba(239,68,68,0.4)]',
 }
 
-// Cohort options derived from central source (excludes 'all')
-import { COHORT_OPTIONS as ALL_COHORT_OPTIONS } from '@/lib/supabase'
-const COHORT_OPTIONS = ALL_COHORT_OPTIONS.filter(o => o.value !== 'all')
+// Certification-specific cohort options.
+// Each entry maps to a COHORTS config in the edge function
+// (supabase/functions/kith-climate-certificate/index.ts).
+// When adding a new cohort, also add the matching CohortConfig entry there.
+const CERT_COHORT_OPTIONS = [
+  { value: '8week-mar-2026', label: 'March 16th 2026 — 8-week cohort' },
+  { value: '6week-may-2026', label: 'May 18th 2026 — 6-week cohort' },
+] as const
 
 function formatDate(dateStr: string | null): string {
   if (!dateStr) return '-'
@@ -304,9 +309,7 @@ function AddCertificationModal({ onClose }: { onClose: () => void }) {
     first_name: '',
     last_name: '',
     email: '',
-    company: '',
-    cohort: 'May 18th 2026',
-    program: '8-week',
+    cohort_id: CERT_COHORT_OPTIONS[1].value, // Default to the upcoming cohort
   })
 
   function handleChange(
@@ -331,9 +334,7 @@ function AddCertificationModal({ onClose }: { onClose: () => void }) {
           first_name: form.first_name,
           last_name: form.last_name,
           email: form.email,
-          company: form.company || null,
-          cohort: form.cohort,
-          program: form.program,
+          cohort_id: form.cohort_id,
         }),
       })
 
@@ -439,47 +440,23 @@ function AddCertificationModal({ onClose }: { onClose: () => void }) {
 
           <div>
             <label className="block text-xs text-[var(--color-text-muted)] uppercase tracking-wider mb-1">
-              Company
+              Cohort
             </label>
-            <input
-              type="text"
-              name="company"
-              value={form.company}
+            <select
+              name="cohort_id"
+              value={form.cohort_id}
               onChange={handleChange}
-              className="w-full px-3 py-2 text-sm rounded border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[#5B9A8B] transition-colors"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs text-[var(--color-text-muted)] uppercase tracking-wider mb-1">
-                Cohort
-              </label>
-              <select
-                name="cohort"
-                value={form.cohort}
-                onChange={handleChange}
-                className="w-full px-3 py-2 text-sm rounded border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] focus:outline-none focus:border-[#5B9A8B] transition-colors"
-              >
-                {COHORT_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs text-[var(--color-text-muted)] uppercase tracking-wider mb-1">
-                Program
-              </label>
-              <input
-                type="text"
-                name="program"
-                value={form.program}
-                onChange={handleChange}
-                className="w-full px-3 py-2 text-sm rounded border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[#5B9A8B] transition-colors"
-              />
-            </div>
+              className="w-full px-3 py-2 text-sm rounded border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] focus:outline-none focus:border-[#5B9A8B] transition-colors"
+            >
+              {CERT_COHORT_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-[var(--color-text-muted)] mt-2">
+              Cohort determines the program name, topics, badge, and credential page on the generated certificate.
+            </p>
           </div>
 
           <div className="flex items-center justify-end gap-3 pt-2">
