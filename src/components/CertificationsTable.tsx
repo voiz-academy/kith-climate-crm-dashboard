@@ -36,7 +36,8 @@ const emailStatusColors: Record<string, string> = {
 // (supabase/functions/kith-climate-certificate/index.ts).
 // When adding a new cohort, also add the matching CohortConfig entry there.
 const CERT_COHORT_OPTIONS = [
-  { value: '8week-mar-2026', label: 'March 16th 2026 — 8-week cohort' },
+  { value: '8week-jan-2026', label: 'January 19th 2026 — 8-week cohort' },
+  { value: '6week-mar-2026', label: 'March 16th 2026 — 6-week cohort' },
   { value: '6week-may-2026', label: 'May 18th 2026 — 6-week cohort' },
 ] as const
 
@@ -309,7 +310,7 @@ function AddCertificationModal({ onClose }: { onClose: () => void }) {
     first_name: '',
     last_name: '',
     email: '',
-    cohort_id: CERT_COHORT_OPTIONS[1].value, // Default to the upcoming cohort
+    cohort_id: CERT_COHORT_OPTIONS[CERT_COHORT_OPTIONS.length - 1].value, // Default to the most recent cohort (May 18th 2026)
   })
 
   function handleChange(

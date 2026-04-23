@@ -64,10 +64,38 @@ interface CohortConfig {
   shareTextHashtags: string;
 }
 
+// Shared 6-week curriculum. March and May cohorts both use this program;
+// only the cohortLabel/id change per intake.
+const SIX_WEEK_PROGRAM = {
+  programName: "6-Week Cohort — AI for Climate Professionals",
+  programShortCode: "6-week",
+  durationWeeks: 6,
+  badgeUrl: `${SITE_DOMAIN}/images/kith-climate-badge-6week.svg`,
+  credentialUrl: `${SITE_DOMAIN}/credential/6-week`,
+  certDescription:
+    "has successfully completed the Kith Climate 6-Week Cohort Program, building working AI-powered climate applications and demonstrating proficiency across the sustainability consulting stack, earning the title of",
+  topics: [
+    "Data Audit",
+    "Carbon Inventory & Dashboard",
+    "Materiality Assessment",
+    "Progress Tracking",
+    "Capstone Disclosure",
+  ],
+  ogDescription:
+    "Completed the Kith Climate 6-Week Cohort: AI for Climate Professionals",
+  shareTextParagraph1:
+    "I just completed the Kith Climate 6-Week Cohort \u2014 an intensive program where I built working AI-powered applications across the sustainability consulting stack.",
+  shareTextParagraph2:
+    "Over 6 weeks, I built tools for data audit, carbon inventory, materiality assessment, progress tracking, and a capstone disclosure narrative. Working applications.",
+  shareTextParagraph3:
+    "If you\u2019re a climate professional looking to add AI to your toolkit, take a look at what @Kith Climate is building.",
+  shareTextHashtags: "#Sustainability #AI #ClimateAction #KithClimate",
+} as const;
+
 const COHORTS: CohortConfig[] = [
   {
-    id: "8week-mar-2026",
-    cohortLabel: "March 16th 2026",
+    id: "8week-jan-2026",
+    cohortLabel: "January 19th 2026",
     programName: "8-Week Cohort — AI for Climate Professionals",
     programShortCode: "8-week",
     durationWeeks: 8,
@@ -94,31 +122,14 @@ const COHORTS: CohortConfig[] = [
     shareTextHashtags: "#Sustainability #AI #ClimateAction #KithClimate",
   },
   {
+    id: "6week-mar-2026",
+    cohortLabel: "March 16th 2026",
+    ...SIX_WEEK_PROGRAM,
+  },
+  {
     id: "6week-may-2026",
     cohortLabel: "May 18th 2026",
-    programName: "6-Week Cohort — AI for Climate Professionals",
-    programShortCode: "6-week",
-    durationWeeks: 6,
-    badgeUrl: `${SITE_DOMAIN}/images/kith-climate-badge-6week.svg`,
-    credentialUrl: `${SITE_DOMAIN}/credential/6-week`,
-    certDescription:
-      "has successfully completed the Kith Climate 6-Week Cohort Program, building working AI-powered climate applications and demonstrating proficiency across the sustainability consulting stack, earning the title of",
-    topics: [
-      "Data Audit",
-      "Carbon Inventory & Dashboard",
-      "Materiality Assessment",
-      "Progress Tracking",
-      "Capstone Disclosure",
-    ],
-    ogDescription:
-      "Completed the Kith Climate 6-Week Cohort: AI for Climate Professionals",
-    shareTextParagraph1:
-      "I just completed the Kith Climate 6-Week Cohort \u2014 an intensive program where I built working AI-powered applications across the sustainability consulting stack.",
-    shareTextParagraph2:
-      "Over 6 weeks, I built tools for data audit, carbon inventory, materiality assessment, progress tracking, and a capstone disclosure narrative. Working applications.",
-    shareTextParagraph3:
-      "If you\u2019re a climate professional looking to add AI to your toolkit, take a look at what @Kith Climate is building.",
-    shareTextHashtags: "#Sustainability #AI #ClimateAction #KithClimate",
+    ...SIX_WEEK_PROGRAM,
   },
 ];
 
