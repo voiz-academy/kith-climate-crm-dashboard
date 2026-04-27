@@ -52,6 +52,8 @@ export type FunnelStatus =
   | 'requested_discount'
   | 'deferred_next_cohort'
   | 'interview_deferred'
+  | 'stale_application'
+  | 'waitlist'
 
 export const FUNNEL_STAGES: FunnelStatus[] = [
   'lead', 'registered', 'attended', 'applied', 'invited_to_interview',
@@ -63,6 +65,7 @@ export const SIDE_STATUSES: FunnelStatus[] = [
   'no_show', 'offer_expired', 'not_invited',
   'requested_discount', 'deferred_next_cohort',
   'interview_deferred',
+  'stale_application', 'waitlist',
 ]
 
 export const FUNNEL_LABELS: Record<FunnelStatus, string> = {
@@ -83,6 +86,8 @@ export const FUNNEL_LABELS: Record<FunnelStatus, string> = {
   requested_discount: 'Requested Discount',
   deferred_next_cohort: 'Deferred Cohort',
   interview_deferred: 'Deferred (Next Cohort)',
+  stale_application: 'Stale Application',
+  waitlist: 'Waitlist',
 }
 
 // Cohort tracking types
@@ -419,6 +424,7 @@ export const FUNNEL_RANK: Record<string, number> = {
   invited_to_interview: 4,
   not_invited: 4,
   interview_deferred: 4,
+  stale_application: 4,
   booked: 5,
   interviewed: 6,
   no_show: 6,
@@ -427,6 +433,7 @@ export const FUNNEL_RANK: Record<string, number> = {
   offer_expired: 7,
   requested_discount: 7,
   deferred_next_cohort: 7,
+  waitlist: 7,
   enrolled: 8,
 }
 

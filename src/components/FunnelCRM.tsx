@@ -23,10 +23,10 @@ interface FunnelCRMProps {
 /** Ordered funnel stages with their associated rejection/side statuses */
 const STAGE_SECTIONS: { stage: FunnelStatus; sideStatuses: FunnelStatus[] }[] = [
   { stage: 'applied', sideStatuses: ['application_rejected'] },
-  { stage: 'invited_to_interview', sideStatuses: ['not_invited', 'interview_deferred'] },
+  { stage: 'invited_to_interview', sideStatuses: ['not_invited', 'interview_deferred', 'stale_application'] },
   { stage: 'booked', sideStatuses: [] },
   { stage: 'interviewed', sideStatuses: ['interview_rejected', 'no_show'] },
-  { stage: 'invited_to_enrol', sideStatuses: ['offer_expired', 'requested_discount', 'deferred_next_cohort'] },
+  { stage: 'invited_to_enrol', sideStatuses: ['offer_expired', 'requested_discount', 'deferred_next_cohort', 'waitlist'] },
   { stage: 'enrolled', sideStatuses: [] },
 ]
 
@@ -45,6 +45,8 @@ const sideStatusColors: Record<string, string> = {
   requested_discount: 'text-[#EAB308]',
   deferred_next_cohort: 'text-[#EAB308]',
   interview_deferred: 'text-[#EAB308]',
+  stale_application: 'text-[var(--color-text-muted)]',
+  waitlist: 'text-[#EAB308]',
 }
 
 const stageHeaderColors: Record<string, string> = {
@@ -563,11 +565,13 @@ export function FunnelCRM({
       requested_discount: 'Requested Discount',
       deferred_next_cohort: 'Deferred Cohort',
       offer_expired: 'Offer Expired',
+      waitlist: 'Waitlist',
     }
     const endpoints: Record<string, string> = {
       requested_discount: '/api/customers/requested-discount',
       deferred_next_cohort: '/api/customers/deferred-next-cohort',
       offer_expired: '/api/customers/offer-expired',
+      waitlist: '/api/customers/waitlist',
     }
     const label = labels[action] || action
     const endpoint = endpoints[action]
@@ -597,10 +601,12 @@ export function FunnelCRM({
     const labels: Record<string, string> = {
       not_invited: 'Not Invited',
       interview_deferred: 'Deferred (Next Cohort)',
+      stale_application: 'Stale Application',
     }
     const endpoints: Record<string, string> = {
       not_invited: '/api/customers/not-invited',
       interview_deferred: '/api/customers/interview-deferred',
+      stale_application: '/api/customers/stale-application',
     }
     const label = labels[action] || action
     const endpoint = endpoints[action]
@@ -724,6 +730,7 @@ export function FunnelCRM({
                 <option value="" disabled>{actionLoading === customer.id ? 'Updating...' : '\u2014 Action \u2014'}</option>
                 <option value="not_invited">Not Invited</option>
                 <option value="interview_deferred">Deferred Cohort</option>
+                <option value="stale_application">Stale Application</option>
               </select>
             </td>
           </>
@@ -917,6 +924,7 @@ export function FunnelCRM({
                 <option value="requested_discount">Requested Discount</option>
                 <option value="deferred_next_cohort">Deferred Cohort</option>
                 <option value="offer_expired">Mark Expired</option>
+                <option value="waitlist">Waitlist</option>
               </select>
             </td>
           </>
