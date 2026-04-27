@@ -6,7 +6,7 @@ import { Header } from '@/components/Header'
 export const dynamic = 'force-dynamic'
 
 const TARGET_COHORT = 'May 18th 2026'
-const ENROLLMENT_GOAL = 30
+const ENROLLMENT_GOAL = 40
 const COHORT_START_DATE = new Date('2026-05-18')
 
 // ---- helpers ----
@@ -368,15 +368,10 @@ export default async function Dashboard() {
               Cohort funnel: March 16th 2026 (108 pipeline → 28 enrolled).
             </p>
             <div className="space-y-3">
-              <RateBar label="Event Registered → Enrolled" rate={p.rates.registered_to_enrolled} />
-              <div className="pt-2 border-t border-[var(--color-border-subtle)]">
-                <div className="space-y-3">
-                  <RateBar label="Applied → Booked" rate={p.rates.applied_to_booked} />
-                  <RateBar label="Booked → Interviewed" rate={p.rates.booked_to_interviewed} />
-                  <RateBar label="Interviewed → Invited" rate={p.rates.interviewed_to_invited} />
-                  <RateBar label="Invited → Enrolled" rate={p.rates.invited_to_enrolled} />
-                </div>
-              </div>
+              <RateBar label="Applied → Booked" rate={p.rates.applied_to_booked} />
+              <RateBar label="Booked → Interviewed" rate={p.rates.booked_to_interviewed} />
+              <RateBar label="Interviewed → Invited" rate={p.rates.interviewed_to_invited} />
+              <RateBar label="Invited → Enrolled" rate={p.rates.invited_to_enrolled} />
               <div className="pt-2 border-t border-[var(--color-border-subtle)]">
                 <RateBar label="Overall Applied → Enrolled" rate={p.rates.overall_applied_to_enrolled} />
               </div>
