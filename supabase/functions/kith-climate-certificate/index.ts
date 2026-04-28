@@ -2094,6 +2094,20 @@ function renderCertificationEmail(cert: any, certificateUrl: string): string {
           </tr>` : ""}
 
           <!-- ============================================ -->
+          <!-- SECTION 4b: Your portfolio                    -->
+          <!-- ============================================ -->
+          <tr>
+            <td style="padding:0 40px 28px;">
+              <p style="margin:0 0 8px;font-size:18px;font-weight:600;color:#e8e6e3;">
+                Your portfolio
+              </p>
+              <p style="margin:0;font-size:14px;line-height:1.6;color:rgba(232,230,227,0.6);">
+                We recommend building a portfolio page that showcases the deliverables from each week. This can be an HTML document or published URL for colleagues or employers to see the value of this work. If you want any support creating this, <a href="https://calendly.com/ben-kithailab/30min" style="color:#5B9A8B;text-decoration:none;font-weight:500;">book a session with Ben</a> or attend our open community Claude Code session.
+              </p>
+            </td>
+          </tr>
+
+          <!-- ============================================ -->
           <!-- SECTION 5: What's Next                        -->
           <!-- ============================================ -->
           <tr>
