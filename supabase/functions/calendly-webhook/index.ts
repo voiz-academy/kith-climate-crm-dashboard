@@ -302,14 +302,18 @@ Deno.serve(async (req: Request) => {
       const cancelReason = eventPayload.cancellation?.reason || null;
       const inviteeEmail = eventPayload.email?.toLowerCase();
 
-      const { error } = await supabase
+      // Mark the booking cancelled AND grab customer_id + cohort so we can
+      // revert the customer's funnel below.
+      const { data: cancelledRow, error } = await supabase
         .from("interviews_booked")
         .update({
           cancelled_at: new Date().toISOString(),
           cancel_reason: cancelReason,
           updated_at: new Date().toISOString(),
         })
-        .eq("calendly_event_uri", eventUri);
+        .eq("calendly_event_uri", eventUri)
+        .select("customer_id, cohort")
+        .maybeSingle();
 
       if (error) {
         console.error("Update error:", error);
@@ -325,18 +329,53 @@ Deno.serve(async (req: Request) => {
         );
       }
 
-      console.log(`Booking cancelled for event: ${eventUri}`);
+      // Revert funnel from 'booked' back to 'invited_to_interview' so the
+      // customer can re-book. The revert_funnel RPC has a guard that ONLY
+      // applies the change if the cohort's current status is 'booked' — if
+      // they've already moved past booked (interviewed, enrolled, etc.),
+      // the revert is skipped and we leave them alone.
+      let revertResult: Record<string, unknown> = {
+        status: "no_revert",
+        reason: "no_customer_or_cohort",
+      };
+      if (cancelledRow?.customer_id && cancelledRow?.cohort) {
+        const { data: revertData, error: revertErr } = await supabase.rpc(
+          "revert_funnel",
+          {
+            p_customer_id: cancelledRow.customer_id,
+            p_new_status: "invited_to_interview",
+            p_cohort: cancelledRow.cohort,
+            p_only_if_status: "booked",
+          },
+        );
+        if (revertErr) {
+          console.error("Funnel revert failed:", revertErr.message);
+          revertResult = { status: "revert_error", error: revertErr.message };
+        } else {
+          revertResult = (revertData as Record<string, unknown>) || revertResult;
+        }
+      }
+
+      console.log(
+        `Booking cancelled for event: ${eventUri}; revert: ${JSON.stringify(revertResult)}`,
+      );
       const durationMs = Date.now() - startTime;
       await logToSystemLogs("success", 200, durationMs, {
         action: "cancelled",
         calendly_event_uri: eventUri,
         invitee_email: inviteeEmail,
         cancel_reason: cancelReason,
+        customer_id: cancelledRow?.customer_id || null,
+        cohort: cancelledRow?.cohort || null,
+        revert: revertResult,
       });
-      return new Response(JSON.stringify({ status: "cancelled" }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ status: "cancelled", revert: revertResult }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
     }
 
     // Unknown event type
