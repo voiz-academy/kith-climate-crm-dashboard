@@ -39,6 +39,9 @@ verify_jwt = false
 [functions.kith-climate-pending-email-review]
 verify_jwt = false
 
+[functions.reconcile-payment]
+verify_jwt = false
+
 # --- Manual backfill tools ---
 
 [functions.backfill-calendly]
@@ -57,6 +60,12 @@ verify_jwt = true
 
 [functions.kith-climate-send-email]
 verify_jwt = true
+
+[functions.kith-climate-resend-sync]
+verify_jwt = false
+
+[functions.kith-climate-getresponse-sync]
+verify_jwt = false
 
 [functions.discord-member-sync]
 verify_jwt = true

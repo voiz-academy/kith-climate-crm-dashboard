@@ -69,6 +69,70 @@ async function advanceFunnel(customerId: string, targetStatus: string, cohort?: 
   }
 }
 
+// ——— ORPHAN PAYMENT ALERT ——————————————————————————————————————
+// Sends an admin email when a Stripe payment arrives without a matching
+// CRM customer. Non-fatal: if the alert fails, the webhook still succeeds
+// (the orphan row is already saved and visible in /reconcile).
+const ORPHAN_ALERT_RECIPIENTS = ["ben@kithailab.com", "diego@kithailab.com"];
+const RECONCILE_URL = "https://crm.kithclimate.com/reconcile";
+
+async function sendOrphanAlert(args: {
+  paymentId: string | undefined;
+  stripeEmail: string;
+  amountCents: number;
+  currency: string;
+  stripeEventId: string;
+  paymentIntentId: string | null;
+  source: "checkout" | "invoice";
+}) {
+  try {
+    const amountStr = `${args.currency.toUpperCase()} ${(args.amountCents / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const subject = `[Kith Climate] Unmatched payment from ${args.stripeEmail} — ${amountStr}`;
+    const html = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 560px; padding: 20px;">
+        <h2 style="color: #1a1d21; margin-top: 0;">Stripe payment with no CRM customer</h2>
+        <p style="color: #4a4e54;">A Stripe charge succeeded but the billing email didn&rsquo;t match any customer in the CRM. Most often this is because the customer paid with a different email than they applied with.</p>
+        <table style="border-collapse: collapse; margin: 16px 0; font-size: 14px;">
+          <tr><td style="padding: 6px 12px 6px 0; color: #6b6e74;">Amount</td><td style="padding: 6px 0; font-weight: 600; color: #1a1d21;">${amountStr}</td></tr>
+          <tr><td style="padding: 6px 12px 6px 0; color: #6b6e74;">Stripe billing email</td><td style="padding: 6px 0; font-family: ui-monospace, monospace; color: #1a1d21;">${args.stripeEmail}</td></tr>
+          <tr><td style="padding: 6px 12px 6px 0; color: #6b6e74;">Source</td><td style="padding: 6px 0; color: #1a1d21;">${args.source}.session.completed</td></tr>
+          ${args.paymentIntentId ? `<tr><td style="padding: 6px 12px 6px 0; color: #6b6e74;">Payment intent</td><td style="padding: 6px 0; font-family: ui-monospace, monospace; font-size: 12px; color: #1a1d21;">${args.paymentIntentId}</td></tr>` : ""}
+          <tr><td style="padding: 6px 12px 6px 0; color: #6b6e74;">Stripe event</td><td style="padding: 6px 0; font-family: ui-monospace, monospace; font-size: 12px; color: #1a1d21;">${args.stripeEventId}</td></tr>
+        </table>
+        <p style="margin-top: 24px;">
+          <a href="${RECONCILE_URL}" style="display: inline-block; background: #5B9A8B; color: white; padding: 10px 18px; border-radius: 6px; text-decoration: none; font-weight: 500;">Reconcile in dashboard →</a>
+        </p>
+        <p style="color: #6b6e74; font-size: 12px; margin-top: 32px;">The payment is safe — recorded in <code>kith_climate.payments</code> with <code>reconciliation_status = 'unmatched_email'</code>. Reconciling will link it to the right customer and trigger the welcome email automatically.</p>
+      </div>
+    `.trim();
+
+    const resp = await fetch(`${supabaseUrl}/functions/v1/kith-climate-send-email`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${supabaseKey}`,
+        apikey: supabaseKey,
+      },
+      body: JSON.stringify({
+        to: ORPHAN_ALERT_RECIPIENTS,
+        subject,
+        html_body: html,
+        email_type: "admin_orphan_payment_alert",
+        mode: "immediate",
+      }),
+    });
+
+    if (!resp.ok) {
+      const txt = await resp.text();
+      log("Orphan alert email failed (non-fatal)", { status: resp.status, body: txt.slice(0, 200) });
+    } else {
+      log("Orphan alert email sent", { paymentId: args.paymentId, recipients: ORPHAN_ALERT_RECIPIENTS });
+    }
+  } catch (err) {
+    log("Orphan alert email error (non-fatal)", { error: String(err) });
+  }
+}
+
 // ——— HMAC SIGNATURE VERIFICATION ———————————————————————————————
 async function verifyStripeSignature(
   body: string,
@@ -287,12 +351,82 @@ Deno.serve(async (req: Request) => {
 
       const customer = await findCustomerByEmail(customerEmail);
       if (!customer) {
-        log("Customer not found in kith_climate", { email: customerEmail });
-        await logToSystemLogs("success", 200, Date.now() - start, { event_type: event.type, action: "skipped_customer_not_found", email: customerEmail, stripe_event_id: event.id });
+        // —— ORPHAN PAYMENT ————————————————————————————————————————
+        // Record the payment with no customer link so it surfaces in the
+        // /reconcile dashboard view instead of being silently dropped.
+        // Common cause: Stripe billing email differs from the CRM contact email.
+        log("Customer not found — recording as orphan for reconciliation", { email: customerEmail });
+
+        // Dedup by checkout session ID
+        const { data: existingOrphan } = await supabase
+          .from("payments")
+          .select("id")
+          .eq("stripe_checkout_session_id", sessionId)
+          .maybeSingle();
+
+        if (existingOrphan) {
+          log("Duplicate checkout session (orphan)", { sessionId });
+          await logToSystemLogs("success", 200, Date.now() - start, { event_type: event.type, action: "skipped_duplicate_orphan", stripe_event_id: event.id });
+          return json({ status: "skipped", reason: "duplicate" });
+        }
+
+        const primaryProductId = productIds.length > 0 ? productIds[0] : null;
+
+        const { data: orphan, error: orphanErr } = await supabase
+          .from("payments")
+          .insert({
+            customer_id: null,
+            enrollee_customer_id: null,
+            stripe_payment_intent_id: paymentIntentId,
+            stripe_checkout_session_id: sessionId,
+            stripe_customer_id: stripeCustomerId,
+            amount_cents: amountTotal,
+            currency: currency,
+            status: "succeeded",
+            product: productName || "Kith Climate",
+            cohort: null, // Determined at reconciliation time from the linked customer
+            paid_at: new Date(session.created * 1000).toISOString(),
+            reconciliation_status: "unmatched_email",
+            metadata: {
+              product_id: primaryProductId,
+              all_product_ids: productIds,
+              stripe_event_id: event.id,
+              stripe_email: customerEmail,
+              payment_status: session.payment_status,
+              mode: session.mode,
+              needs_reconciliation: true,
+            },
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .select("id")
+          .single();
+
+        if (orphanErr) {
+          log("Orphan insert error", { error: orphanErr.message });
+          await logToSystemLogs("error", 500, Date.now() - start, { event_type: event.type, email: customerEmail, stripe_event_id: event.id }, orphanErr.message);
+          return json({ status: "error", error: orphanErr.message }, 500);
+        }
+
+        log("Orphan payment recorded", { paymentId: orphan?.id, email: customerEmail, amount: amountTotal });
+        await logToSystemLogs("success", 200, Date.now() - start, { event_type: event.type, action: "recorded_unmatched", email: customerEmail, amount_cents: amountTotal, payment_id: orphan?.id, stripe_event_id: event.id });
+
+        // Fire the admin alert email (non-blocking; failure does not fail the webhook)
+        await sendOrphanAlert({
+          paymentId: orphan?.id,
+          stripeEmail: customerEmail,
+          amountCents: amountTotal,
+          currency,
+          stripeEventId: event.id,
+          paymentIntentId,
+          source: "checkout",
+        });
+
         return json({
-          status: "skipped",
-          reason: "customer_not_found",
+          status: "recorded_unmatched",
+          payment_id: orphan?.id,
           email: customerEmail,
+          reason: "needs_reconciliation",
         });
       }
 
@@ -439,7 +573,69 @@ Deno.serve(async (req: Request) => {
           await logToSystemLogs("success", 200, Date.now() - start, { event_type: event.type, action: "created_invoice_enrolment", email: customerEmail, amount_cents: amountPaid, cohort, stripe_event_id: event.id });
           return json({ status: "created", email: customerEmail, cohort });
         } else {
-          log("Customer not found for invoice enrolment", { email: customerEmail });
+          // —— ORPHAN INVOICE PAYMENT ——————————————————————————————
+          // Full enrolment amount, but Stripe customer email didn't match a
+          // CRM customer. Record as orphan rather than letting it fall through
+          // to the partial-payment branch (which would mislabel it).
+          log("Customer not found for invoice enrolment — recording as orphan", { email: customerEmail });
+
+          const primaryProductId = productIds.length > 0 ? productIds[0] : null;
+
+          const { data: orphan, error: orphanErr } = await supabase
+            .from("payments")
+            .insert({
+              customer_id: null,
+              enrollee_customer_id: null,
+              stripe_payment_intent_id: paymentIntentId,
+              stripe_customer_id: stripeCustomerId,
+              amount_cents: amountPaid,
+              currency: currency,
+              status: "succeeded",
+              product: productName || "Kith Climate",
+              cohort: null,
+              paid_at: new Date((invoice.status_transitions?.paid_at || invoice.created) * 1000).toISOString(),
+              reconciliation_status: "unmatched_email",
+              metadata: {
+                product_id: primaryProductId,
+                all_product_ids: productIds,
+                stripe_event_id: event.id,
+                invoice_id: invoiceId,
+                billing_reason: invoice.billing_reason,
+                stripe_email: customerEmail,
+                needs_reconciliation: true,
+              },
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .select("id")
+            .single();
+
+          if (orphanErr) {
+            log("Orphan insert error (invoice)", { error: orphanErr.message });
+            await logToSystemLogs("error", 500, Date.now() - start, { event_type: event.type, email: customerEmail, stripe_event_id: event.id }, orphanErr.message);
+            return json({ status: "error", error: orphanErr.message }, 500);
+          }
+
+          log("Orphan invoice payment recorded", { paymentId: orphan?.id, email: customerEmail, amount: amountPaid });
+          await logToSystemLogs("success", 200, Date.now() - start, { event_type: event.type, action: "recorded_unmatched_invoice", email: customerEmail, amount_cents: amountPaid, payment_id: orphan?.id, stripe_event_id: event.id });
+
+          // Fire the admin alert email
+          await sendOrphanAlert({
+            paymentId: orphan?.id,
+            stripeEmail: customerEmail,
+            amountCents: amountPaid,
+            currency,
+            stripeEventId: event.id,
+            paymentIntentId,
+            source: "invoice",
+          });
+
+          return json({
+            status: "recorded_unmatched",
+            payment_id: orphan?.id,
+            email: customerEmail,
+            reason: "needs_reconciliation",
+          });
         }
       }
 

@@ -148,6 +148,12 @@ async function getDashboardData() {
   const errorRate = totalCalls > 0 ? Math.round((errorCalls / totalCalls) * 100) : 0
   const uniqueFunctions = new Set(logs.map(l => l.function_name)).size
 
+  // ---- Unmatched payments (orphans needing reconciliation) ----
+  const { count: unmatchedPaymentCount } = await supabase
+    .from('payments')
+    .select('id', { count: 'exact', head: true })
+    .eq('reconciliation_status', 'unmatched_email')
+
   // ---- Upcoming events ----
   const today = now.toISOString().slice(0, 10)
   const { data: upcomingRegsRaw } = await supabase
@@ -189,6 +195,7 @@ async function getDashboardData() {
     emailsThisWeek, emailsLastWeek, emailsMonthlyAvg,
     totalCalls, errorCalls, errorRate, uniqueFunctions,
     upcomingEvents,
+    unmatchedPaymentCount: unmatchedPaymentCount || 0,
   }
 }
 
@@ -278,6 +285,30 @@ export default async function Dashboard() {
             Weekly performance across all systems — {TARGET_COHORT} cohort
           </p>
         </div>
+
+        {/* ── Unmatched Payments Alert ── */}
+        {d.unmatchedPaymentCount > 0 && (
+          <a
+            href="/reconcile"
+            className="block mb-6 rounded-lg border border-[#D97706] bg-[var(--color-card)] p-4 hover:bg-[var(--color-surface)] transition-colors"
+          >
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-[#D97706]">
+                  ⚠ {d.unmatchedPaymentCount} unmatched payment
+                  {d.unmatchedPaymentCount === 1 ? '' : 's'} needing reconciliation
+                </p>
+                <p className="text-xs text-[var(--color-text-tertiary)] mt-1">
+                  Stripe charges arrived without a customer match (likely email
+                  mismatch). Click to reconcile and enrol them.
+                </p>
+              </div>
+              <span className="text-sm text-[var(--color-text-secondary)]">
+                Reconcile →
+              </span>
+            </div>
+          </a>
+        )}
 
         {/* ── Goal Tracker ── */}
         <div className="kith-card p-6 mb-8">
