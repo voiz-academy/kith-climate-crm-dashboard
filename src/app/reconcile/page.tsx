@@ -36,7 +36,7 @@ async function getUnmatchedPayments(): Promise<UnmatchedPayment[]> {
     return []
   }
 
-  return (data || []) as UnmatchedPayment[]
+  return (data ?? []) as unknown as UnmatchedPayment[]
 }
 
 export default async function ReconcilePage() {
