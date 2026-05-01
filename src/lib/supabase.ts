@@ -499,6 +499,99 @@ export async function fetchAll<T>(
   return allRows
 }
 
+// ---------- Engagements (B2B pipeline — separate from cohort funnel) ----------
+
+export type EngagementStream = 'corporate_contract' | 'partner' | 'coach'
+
+export type EngagementStage =
+  | 'intro'
+  | 'discovery'
+  | 'proposal_sent'
+  | 'negotiation'
+  | 'won'
+  | 'live'
+  | 'closed'
+  | 'lost'
+  | 'dormant'
+
+export type Engagement = {
+  id: string
+  slug: string
+  organization_name: string
+  stream: EngagementStream
+  stage: EngagementStage
+  primary_contact_name: string | null
+  primary_contact_email: string | null
+  primary_contact_role: string | null
+  region: string | null
+  owner: string | null
+  source: string | null
+  expected_value_cents: number | null
+  expected_close_date: string | null
+  last_interaction_at: string | null
+  next_steps: string | null
+  proposals: string[] | null
+  folder_path: string | null
+  notes_markdown: string | null
+  last_synced_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export const ENGAGEMENT_STREAM_LABELS: Record<EngagementStream, string> = {
+  corporate_contract: 'Corporate Contracts',
+  partner: 'Partners',
+  coach: 'Coaches',
+}
+
+export const ENGAGEMENT_STAGE_LABELS: Record<EngagementStage, string> = {
+  intro: 'Intro',
+  discovery: 'Discovery',
+  proposal_sent: 'Proposal Sent',
+  negotiation: 'Negotiation',
+  won: 'Won',
+  live: 'Live',
+  closed: 'Closed',
+  lost: 'Lost',
+  dormant: 'Dormant',
+}
+
+export const ENGAGEMENT_STAGE_RANK: Record<EngagementStage, number> = {
+  intro: 1,
+  discovery: 2,
+  proposal_sent: 3,
+  negotiation: 4,
+  won: 5,
+  live: 6,
+  closed: 7,
+  lost: 0,
+  dormant: 0,
+}
+
+export function engagementStageBadgeClasses(stage: EngagementStage): string {
+  switch (stage) {
+    case 'intro':
+      return 'bg-[rgba(232,230,227,0.05)] text-[rgba(232,230,227,0.6)] border border-[rgba(232,230,227,0.1)]'
+    case 'discovery':
+      return 'bg-[rgba(91,154,139,0.15)] text-[#5B9A8B] border border-[rgba(91,154,139,0.3)]'
+    case 'proposal_sent':
+      return 'bg-[rgba(73,133,115,0.15)] text-[#498573] border border-[rgba(73,133,115,0.3)]'
+    case 'negotiation':
+      return 'bg-[rgba(234,179,8,0.15)] text-[#EAB308] border border-[rgba(234,179,8,0.3)]'
+    case 'won':
+    case 'live':
+      return 'bg-[rgba(37,89,67,0.15)] text-[#255943] border border-[rgba(37,89,67,0.3)]'
+    case 'closed':
+      return 'bg-[rgba(232,230,227,0.05)] text-[rgba(232,230,227,0.4)] border border-[rgba(232,230,227,0.1)]'
+    case 'lost':
+      return 'bg-[rgba(239,68,68,0.15)] text-[#EF4444] border border-[rgba(239,68,68,0.3)]'
+    case 'dormant':
+      return 'bg-[rgba(217,119,6,0.15)] text-[#D97706] border border-[rgba(217,119,6,0.3)]'
+  }
+}
+
+// ---------- Personal email domains ----------
+
 export const personalDomains = new Set([
   'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com',
   'live.com', 'proton.me', 'protonmail.com', 'aol.com', 'me.com',
