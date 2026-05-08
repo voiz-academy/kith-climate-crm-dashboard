@@ -346,10 +346,10 @@ export default async function Dashboard() {
             })()}
             {(() => {
               const pipelineNeeded = Math.ceil(p.goal / p.rates.overall_applied_to_enrolled)
-              const pipelineRemaining = Math.max(0, pipelineNeeded - p.current.applied)
+              const pipelineRemaining = Math.max(0, pipelineNeeded - p.current.total)
               return (
                 <GoalBar
-                  current={p.current.applied}
+                  current={p.current.total}
                   goal={pipelineNeeded}
                   label={`Pipeline Entries (need ${pipelineRemaining} more at ${Math.round(p.rates.overall_applied_to_enrolled * 100)}% conv.)`}
                 />

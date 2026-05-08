@@ -103,6 +103,30 @@ const SEGMENT_RATES = {
   direct_applicant: 0.207,
 } as const
 
+// Statuses that are terminal for the current cohort and should contribute 0
+// to projected enrollment. Includes hard rejections, no-shows, expired offers,
+// deferrals to a later cohort, and parking statuses.
+const TERMINAL_STATUSES: ReadonlySet<string> = new Set([
+  'application_rejected',
+  'interview_rejected',
+  'no_show',
+  'offer_expired',
+  'requested_discount',
+  'deferred_next_cohort',
+  'stale_application',
+  'waitlist',
+  'interview_deferred',
+  'not_invited',
+])
+
+// Booking rate to apply to leads currently sitting at `invited_to_interview`.
+// The historical applied→booked rate (~70%) describes end-of-cohort outcomes
+// for everyone who reached the invited stage. Leads still stuck at that stage
+// late in the cycle are the non-engager tail — in March, all 27 leads who
+// ended the cohort at this status had a 0% eventual book rate. We use a small
+// floor to allow for late bookings without claiming the historical average.
+const STUCK_INVITED_TO_INTERVIEW_BOOK_RATE = 0.10
+
 // ---- Pipeline customer type for weighted projection ----
 
 type PipelineCustomer = {
@@ -203,16 +227,22 @@ function projectWeightedEnrollment(
       continue
     }
 
+    // Terminal / out-of-cohort statuses contribute 0 to the projection.
+    if (TERMINAL_STATUSES.has(status)) continue
+
     // Base probability from their current stage
     let stageRate: number
-    if (STAGE_REACHED.invited_to_enrol.includes(status)) {
+    if (status === 'invited_to_enrol') {
       stageRate = rates.invited_to_enrolled
-    } else if (STAGE_REACHED.interviewed.includes(status)) {
+    } else if (status === 'interviewed') {
       stageRate = rates.interviewed_to_invited * rates.invited_to_enrolled
-    } else if (STAGE_REACHED.booked.includes(status)) {
+    } else if (status === 'booked') {
       stageRate = rates.booked_to_interviewed * rates.interviewed_to_invited * rates.invited_to_enrolled
-    } else if (STAGE_REACHED.invited_to_interview.includes(status)) {
-      stageRate = rates.applied_to_booked * rates.booked_to_interviewed * rates.interviewed_to_invited * rates.invited_to_enrolled
+    } else if (status === 'invited_to_interview') {
+      // Stuck pool: don't apply the historical applied→booked rate. These
+      // leads have already had time to book and didn't.
+      stageRate = STUCK_INVITED_TO_INTERVIEW_BOOK_RATE *
+        rates.booked_to_interviewed * rates.interviewed_to_invited * rates.invited_to_enrolled
     } else {
       // Applied or earlier — full funnel conversion
       stageRate = rates.overall_applied_to_enrolled

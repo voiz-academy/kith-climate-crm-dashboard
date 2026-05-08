@@ -71,6 +71,13 @@ probability = stage_base_rate × lead_type_multiplier × source_multiplier
 
 Capped at 85% to prevent over-optimistic projections.
 
+### Stuck-pool and terminal-status adjustments
+
+Two refinements live in `projectWeightedEnrollment()`:
+
+- **Terminal short-circuit.** Statuses that are terminal for the current cohort (`application_rejected`, `interview_rejected`, `no_show`, `offer_expired`, `requested_discount`, `deferred_next_cohort`, `stale_application`, `waitlist`, `interview_deferred`, `not_invited`) contribute 0 to the projection. Without this, e.g. an `offer_expired` lead would be treated as `invited_to_enrol` and projected at the historical 52.8% rate.
+- **Stuck `invited_to_interview` rate.** Leads currently sitting at `invited_to_interview` are not projected at the historical applied→booked rate (~70%). They are the non-engager tail — in March, 27/101 such leads ended the cohort still stuck and never booked. We use a 10% floor (`STUCK_INVITED_TO_INTERVIEW_BOOK_RATE`) to allow for late bookings without claiming the historical average.
+
 ### When to update segment rates
 
 Update `SEGMENT_RATES` in `src/lib/conversion-rates.ts` after each cohort completes enrollment. Run this SQL to get fresh numbers:
