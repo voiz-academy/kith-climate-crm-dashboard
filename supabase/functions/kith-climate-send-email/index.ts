@@ -48,12 +48,12 @@ function personaliseContent(
   out = out.replace(/{email}/g, customer.email || "");
   out = out.replace(/{company}/g, customer.linkedin_company || customer.company_domain || "");
   out = out.replace(/{cohort}/g, cohort || "");
-  // Enrollment deadline: use stored value, or calculate 5 business days from now as fallback
+  // Enrollment deadline: use stored value, or calculate 2 business days from now as fallback
   let deadline = customer.enrollment_deadline || "";
   if (!deadline) {
     const d = new Date();
     let added = 0;
-    while (added < 5) {
+    while (added < 2) {
       d.setDate(d.getDate() + 1);
       if (d.getDay() !== 0 && d.getDay() !== 6) added++;
     }

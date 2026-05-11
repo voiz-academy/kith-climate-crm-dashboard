@@ -2,7 +2,7 @@
  * POST /api/customers/invite-to-enrol
  *
  * Moves a customer from 'interviewed' to 'invited_to_enrol' via advance_funnel RPC,
- * sets enrollment_deadline to 5 business days from now, then triggers the
+ * sets enrollment_deadline to 2 business days from now, then triggers the
  * enrolment invite email automation via database trigger.
  *
  * Body: { customer_id: string, cohort?: string }
@@ -63,8 +63,8 @@ export const POST = withLogging(
         )
       }
 
-      // Set enrollment deadline to 5 business days from now
-      const deadline = addBusinessDays(new Date(), 5)
+      // Set enrollment deadline to 2 business days from now
+      const deadline = addBusinessDays(new Date(), 2)
       const deadlineFormatted = formatDeadline(deadline)
 
       const { error: deadlineErr } = await supabase
