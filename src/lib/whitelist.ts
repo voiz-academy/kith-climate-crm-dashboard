@@ -10,6 +10,7 @@ export const ALLOWED_EMAILS: string[] = [
   'benh@voiz.academy',
   'diego@voiz.academy',
   'yvonne@voiz.academy',
+  'yvonne@kithailab.com',
   'diego@kithailab.com',
   'ben@kithailab.com',
   'alex@kithailab.com',
