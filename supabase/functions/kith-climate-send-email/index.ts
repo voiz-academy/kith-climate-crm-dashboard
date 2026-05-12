@@ -48,9 +48,15 @@ function personaliseContent(
   out = out.replace(/{email}/g, customer.email || "");
   out = out.replace(/{company}/g, customer.linkedin_company || customer.company_domain || "");
   out = out.replace(/{cohort}/g, cohort || "");
-  // Enrollment deadline: use stored value, or calculate 2 business days from now as fallback
+  // Enrollment deadline: stored as a date column (ISO "2026-05-13"), so reformat to
+  // "May 13, 2026" before substitution. Fall back to 2 business days from now if unset.
   let deadline = customer.enrollment_deadline || "";
-  if (!deadline) {
+  if (deadline) {
+    const parsed = new Date(`${deadline}T00:00:00Z`);
+    if (!isNaN(parsed.getTime())) {
+      deadline = parsed.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" });
+    }
+  } else {
     const d = new Date();
     let added = 0;
     while (added < 2) {
