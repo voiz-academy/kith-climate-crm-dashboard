@@ -24,7 +24,7 @@ const CUSTOMER_COLUMNS = [
 ].join(', ')
 
 const EMAIL_COLUMNS = 'customer_id, email_type, direction, sent_at, cohort'
-const PAYMENT_COLUMNS = 'customer_id, enrollee_customer_id, status, cohort, paid_at, created_at'
+const PAYMENT_COLUMNS = 'id, customer_id, enrollee_customer_id, amount_cents, currency, status, cohort, paid_at, created_at'
 const APPLICATION_COLUMNS = 'id, customer_id, name, email, linkedin, role, background, ai_view, goals, budget_confirmed, cohort, status, utm_source, utm_medium, utm_campaign, created_at'
 const INTERVIEW_COLUMNS = 'id, customer_id, interviewee_name, interviewee_email, booking_id, fathom_recording_id, fathom_recording_url, fathom_summary, interviewer_notes, outcome, outcome_reason, conducted_at, cohort, created_at, updated_at, activity_type, applicant_scoring, interviewer'
 const BOOKING_COLUMNS = 'id, customer_id, calendly_event_uri, calendly_invitee_uri, scheduled_at, interviewee_name, interviewee_email, interviewer_name, interviewer_email, event_type, location_type, location_url, cancelled_at, cancel_reason, cohort, created_at, updated_at'
