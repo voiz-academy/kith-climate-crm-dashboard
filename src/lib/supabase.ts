@@ -465,9 +465,17 @@ export function getEventShortLabel(date: string): string {
 // PAGE_SIZE must be < 1000 to avoid collision with PostgREST max_rows default
 const PAGE_SIZE = 500
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyQuery = any
+
 export async function fetchAll<T>(
   table: string,
-  options?: { orderBy?: string; ascending?: boolean; select?: string }
+  options?: {
+    orderBy?: string
+    ascending?: boolean
+    select?: string
+    applyFilters?: (q: AnyQuery) => AnyQuery
+  }
 ): Promise<T[]> {
   const allRows: T[] = []
   let from = 0
@@ -475,7 +483,13 @@ export async function fetchAll<T>(
   const selectStr = options?.select ?? '*'
 
   while (true) {
-    let query = client.from(table).select(selectStr).range(from, from + PAGE_SIZE - 1)
+    let query: AnyQuery = client.from(table).select(selectStr)
+
+    if (options?.applyFilters) {
+      query = options.applyFilters(query)
+    }
+
+    query = query.range(from, from + PAGE_SIZE - 1)
 
     if (options?.orderBy) {
       query = query.order(options.orderBy, { ascending: options.ascending ?? true })

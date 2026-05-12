@@ -1,9 +1,30 @@
+import { revalidateTag } from 'next/cache'
 import { getSupabase } from '@/lib/supabase'
 
 type LogParams = {
   functionName: string
   httpMethod: string
 }
+
+// Route prefixes whose mutations should invalidate the cached funnel data.
+// Read routes under these prefixes also trigger revalidation, which is
+// harmless (just marks the cache stale; next read repopulates it).
+const FUNNEL_AFFECTING_PREFIXES = [
+  'api/customers/',
+  'api/interviews/',
+  'api/interviews',
+  'api/pending-changes/',
+  'api/pending-interviews/',
+  'api/pending-emails/',
+  'api/fathom/',
+  'api/outlook/',
+  'api/leads',
+  'api/payments/',
+  'api/enrichment/',
+  'api/emails/send',
+]
+
+const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 
 /**
  * Wraps an API route handler to log invocations to system_logs.
@@ -35,6 +56,15 @@ export function withLogging(
           errorMessage = body.error || body.details || `HTTP ${statusCode}`
         } catch {
           errorMessage = `HTTP ${statusCode}`
+        }
+      } else if (
+        MUTATING_METHODS.has(params.httpMethod) &&
+        FUNNEL_AFFECTING_PREFIXES.some(p => params.functionName.startsWith(p))
+      ) {
+        try {
+          revalidateTag('funnel', { expire: 30 })
+        } catch (revalErr) {
+          console.error('Failed to revalidate funnel cache:', revalErr)
         }
       }
       return response
