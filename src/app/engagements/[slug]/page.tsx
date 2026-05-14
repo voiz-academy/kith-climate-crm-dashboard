@@ -149,6 +149,7 @@ export default async function EngagementDetailPage({
             <MetaField label="Primary contact" value={engagement.primary_contact_name} />
             <MetaField label="Role" value={engagement.primary_contact_role} />
             <MetaField label="Email" value={engagement.primary_contact_email} email />
+            <MetaField label="LinkedIn" value={engagement.primary_contact_linkedin} link />
             <MetaField label="Region" value={engagement.region} />
             <MetaField label="Owner" value={engagement.owner} />
             <MetaField label="Source" value={engagement.source} />
@@ -205,13 +206,27 @@ function MetaField({
   label,
   value,
   email,
+  link,
   mono,
 }: {
   label: string
   value: string | null | undefined
   email?: boolean
+  link?: boolean
   mono?: boolean
 }) {
+  function renderLinkLabel(url: string): string {
+    // Pretty-print LinkedIn URLs: show the handle, not the full URL
+    const m = url.match(/linkedin\.com\/in\/([^/?#]+)/i)
+    if (m) return `in/${m[1]}`
+    try {
+      const u = new URL(url)
+      return u.hostname.replace(/^www\./, '') + u.pathname.replace(/\/$/, '')
+    } catch {
+      return url
+    }
+  }
+
   return (
     <div>
       <dt className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">
@@ -229,6 +244,15 @@ function MetaField({
               className="text-[#5B9A8B] hover:text-[#6FB3A2] transition-colors"
             >
               {value}
+            </a>
+          ) : link ? (
+            <a
+              href={value}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#5B9A8B] hover:text-[#6FB3A2] transition-colors"
+            >
+              {renderLinkLabel(value)}
             </a>
           ) : (
             value

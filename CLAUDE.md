@@ -142,7 +142,7 @@ No relationships to `customers`, `interviews`, or any cohort-funnel table. Singl
 - **Parser:** `src/lib/engagement-frontmatter.ts` — minimal YAML subset (key:value, key:[items], unquote, inline `# comment` strip). Body = everything after the closing `---`.
 - **UI:** `SyncEngagementButton` on `/engagements/[slug]`. Paste markdown OR upload `.md` file. On success → `router.refresh()`.
 - **Validation:** frontmatter `slug` (if present) must equal URL slug. `organization_name`, `stream`, `stage` required. Stage and stream values constrained to the enums above.
-- **Tracked fields written from frontmatter:** `organization_name`, `stream`, `stage`, `primary_contact_name`, `primary_contact_email`, `primary_contact_role`, `region`, `owner`, `source`, `expected_value_cents`, `expected_close_date`, `last_interaction_at`, `proposals`. Body → `notes_markdown`. `last_synced_at` set to `now()`.
+- **Tracked fields written from frontmatter:** `organization_name`, `stream`, `stage`, `primary_contact_name`, `primary_contact_email`, `primary_contact_role`, `primary_contact_linkedin`, `region`, `owner`, `source`, `expected_value_cents`, `expected_close_date`, `last_interaction_at`, `proposals`. Body → `notes_markdown`. `last_synced_at` set to `now()`.
 - **Frontmatter-only:** `next_steps` and `folder_path` are NOT overwritten by the sync — manage them outside the file (or via a separate edit action later).
 
 ### Out-of-Scope Tables

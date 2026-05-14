@@ -102,6 +102,7 @@ export const POST = withLogging(
         primary_contact_name: fmString(frontmatter, 'primary_contact_name'),
         primary_contact_email: fmString(frontmatter, 'primary_contact_email'),
         primary_contact_role: fmString(frontmatter, 'primary_contact_role'),
+        primary_contact_linkedin: fmString(frontmatter, 'primary_contact_linkedin'),
         region: fmString(frontmatter, 'region'),
         owner: fmString(frontmatter, 'owner'),
         source: fmString(frontmatter, 'source'),

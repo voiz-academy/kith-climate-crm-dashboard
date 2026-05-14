@@ -537,6 +537,7 @@ export type Engagement = {
   primary_contact_name: string | null
   primary_contact_email: string | null
   primary_contact_role: string | null
+  primary_contact_linkedin: string | null
   region: string | null
   owner: string | null
   source: string | null
